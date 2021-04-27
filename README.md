@@ -1,3 +1,14 @@
+# toio SDK for Unity (Unity BLE version)
+original project is made by "https://github.com/comoc/toio-sdk-for-unity.git"
+
+The branch is macos_bleplugin in the above repository.
+
+Please don't forget to add the UniTask package when you use it. Here is the instruction.
+https://github.com/comoc/toio-sdk-for-unity/blob/main/docs/download_sdk.md#unitask-のインストール
+
+Here is a sample of how to use it.
+Assets/toio-sdk/Samples/Sample_Bluetooth/Sample_Bluetooth.unity
+
 # toio SDK for Unity
 
 ## 概要
