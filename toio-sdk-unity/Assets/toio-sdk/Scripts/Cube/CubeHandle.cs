@@ -26,18 +26,6 @@ namespace toio
         public static double lag = 0.130;
 
         // --- Parameters ---
-        [Obsolete("Deprecated. Please use borderRect instead.", false)]
-        public int CenterX {get{return (int)borderRect.center.x;} set{borderRect = new RectInt(value-RangeX/2, CenterY-RangeY/2, RangeX, RangeY);}}
-        [Obsolete("Deprecated. Please use borderRect instead.", false)]
-        public int CenterY {get{return (int)borderRect.center.y;} set{borderRect = new RectInt(CenterX-RangeX/2, value-RangeY/2, RangeX, RangeY);}}
-        [Obsolete("Deprecated. Not needed by CubeHandle.", false)]
-        public int SizeX = 410;
-        [Obsolete("Deprecated. Not needed by CubeHandle.", false)]
-        public int SizeY = 410;
-        [Obsolete("Deprecated. Please use borderRect instead.", false)]
-        public int RangeX {get{return (int)borderRect.width;} set{borderRect = new RectInt(CenterX-value/2, CenterY-RangeY/2, value, RangeY);}}
-        [Obsolete("Deprecated. Please use borderRect instead.", false)]
-        public int RangeY {get{return (int)borderRect.height;} set{borderRect = new RectInt(CenterX-RangeX/2, CenterY-value/2, RangeX, value);}}
         /// <summary>
         /// RectInt that defines border.
         /// ボーダーを定義する RectInt。
@@ -343,8 +331,8 @@ namespace toio
                 // predicted final stopping state, assuming not output current order.
                 double x = this.stopXPred, y = this.stopYPred, rad = this.radPred;
                 // predicted state if not stopping.
-                double predX = x + Max(spdPred, translate * VDotOverU) * dt * Cos(rad);
-                double predY = y + Max(spdPred, translate * VDotOverU) * dt * Sin(rad);
+                double predX = x + translate * VDotOverU * dt * Cos(rad);
+                double predY = y + translate * VDotOverU * dt * Sin(rad);
                 double predRad = this.radPred;
 
                 // currently outside and going further : stop transition
@@ -623,7 +611,7 @@ namespace toio
 
         /// <summary>
         /// Rotate by given radians and angular velocity (rotate).
-        /// 指定角変位（弧度）、指定回転指令で前進。一回のみ呼んでください。
+        /// 指定角変位（弧度）、指定回転指令で回転。一回のみ呼んでください。
         /// </summary>
         public Movement RotateByRad(double drad, double rotate)
         {
@@ -645,7 +633,7 @@ namespace toio
 
         /// <summary>
         /// Rotate by given degrees and angular velocity (rotate).
-        /// 指定角変位（度）、指定回転指令で前進。一回のみ呼んでください。
+        /// 指定角変位（度）、指定回転指令で回転。一回のみ呼んでください。
         /// </summary>
         public Movement RotateByDeg(double ddeg, double rotate)
         {

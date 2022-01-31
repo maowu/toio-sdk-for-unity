@@ -16,6 +16,7 @@
 - [5. Stage Prefab](sys_simulator.md#5-Stage-Prefab)
   - [5.1 ターゲットポール](sys_simulator.md#51-ターゲットポール)
   - [5.2 キューブをフォーカス](sys_simulator.md#52-キューブをフォーカス)
+- [6. Stage Prefab](sys_simulator.md#6-Magnet-Prefab)
 
 # 1. 概説
 
@@ -435,7 +436,7 @@ protected virtual void SimulateMotionSensor()
 }
 ```
 
-`sloped` が変更された時に、対応コールバック `slopeCallback` を呼び出します。
+`sloped` が変更された時に、`InvokeMotionSensorCallback` を通じてモーションセンサーのコールバックを呼び出します。
 
 ```c#
 // CubeSimImpl_v2_0_0.cs
@@ -446,32 +447,26 @@ public override bool sloped
     internal set
     {
         if (this._sloped!=value){
-            this.slopeCallback?.Invoke(value);
+            this._sloped = value;
+            this.InvokeMotionSensorCallback();
         }
-        this._sloped = value;
     }
 }
 ```
 
 ### 衝突検出
 
-衝突検出のシミュレーションは未実装です。
+> 衝突検出のシミュレーションは未実装です。
 
-`collisionDetected` がインスペクターで手動で変更された時に、対応コールバック `collisionDetectedCallback` を呼び出します。
+衝突がインスペクターで手動で発生された時に、`TriggerCollision` が呼ばれ、`InvokeMotionSensorCallback` を通じてモーションセンサーのコールバックを呼び出します。
 
 ```c#
 // CubeSimImpl_v2_0_0.cs
-protected bool _collisionDetected;
-public override bool collisionDetected
+protected bool _collisonDetected = false;
+internal override void TriggerCollision()
 {
-    get {return this._collisionDetected;}
-    internal set
-    {
-        if (this._collisionDetected!=value){
-            this.collisionDetectedCallback?.Invoke(value);
-        }
-        this._collisionDetected = value;
-    }
+    this._collisonDetected = true;
+    this.InvokeMotionSensorCallback();
 }
 ```
 
@@ -480,21 +475,15 @@ public override bool collisionDetected
 > 2.1.0 の機能です。
 ダブルタップのシミュレーションは未実装です。
 
-`doubleTap` がインスペクターで手動で変更された時に、対応コールバック `doubleTapCallback` を呼び出します。
+ダブルタップがインスペクターで手動で押された時に、`TriggerDoubleTap` が呼ばれ、`InvokeMotionSensorCallback` を通じてモーションセンサーのコールバックを呼び出します。
 
 ```c#
 // CubeSimImpl_v2_1_0.cs
-protected bool _doubleTap;
-public override bool doubleTap
+protected bool _doubleTapped = false;
+internal override void TriggerDoubleTap()
 {
-    get {return this._doubleTap;}
-    internal set
-    {
-        if (this._doubleTap!=value){
-            this.doubleTapCallback?.Invoke(value);
-        }
-        this._doubleTap = value;
-    }
+    this._doubleTapped = true;
+    this.InvokeMotionSensorCallback();
 }
 ```
 
@@ -534,7 +523,7 @@ protected virtual void SimulateMotionSensor()
 }
 ```
 
-`pose` が変更された時に、対応コールバック `poseCallback` を呼び出します。
+`pose` が変更された時に、`InvokeMotionSensorCallback` を通じてモーションセンサーのコールバックを呼び出します。
 
 ```c#
 // CubeSimImpl_v2_1_0.cs
@@ -542,10 +531,10 @@ protected Cube.PoseType _pose = Cube.PoseType.up;
 public override Cube.PoseType pose {
     get{ return _pose; }
     internal set{
-        if (this._pose!=value){
-            this.poseCallback?.Invoke(value);
+        if (this._pose != value){
+            this._pose = value;
+            this.InvokeMotionSensorCallback();
         }
-        _pose = value;
     }
 }
 ```
@@ -555,7 +544,7 @@ public override Cube.PoseType pose {
 > 2.2.0 の機能です。
 シェイク検出のシミュレーションは未実装です。
 
-`shakeLevel` がインスペクターで手動で変更された時に、対応コールバック `shakeCallback` を呼び出します。
+`shakeLevel` がインスペクターで手動で変更された時に、`InvokeMotionSensorCallback` を通じてモーションセンサーのコールバックを呼び出します。
 
 ```c#
 // CubeSimImpl_v2_2_0.cs
@@ -565,10 +554,10 @@ public override int shakeLevel
     get {return this._shakeLevel;}
     internal set
     {
-        if (this._shakeLevel!=value){
-            this.shakeCallback?.Invoke(value);
+        if (this._shakeLevel != value){
+            this._shakeLevel = value;
+            this.InvokeMotionSensorCallback();
         }
-        this._shakeLevel = value;
     }
 }
 ```
@@ -583,8 +572,8 @@ public override int shakeLevel
 // CubeSimImpl_v2_2_0.cs
 protected void SimulateMotorSpeedSensor()
 {
-    int left = Mathf.RoundToInt(speedTireL/CubeSimulator.VMeterOverU);
-    int right = Mathf.RoundToInt(speedTireR/CubeSimulator.VMeterOverU);
+    int left = Mathf.RoundToInt(cube.speedTireL/CubeSimulator.VMeterOverU);
+    int right = Mathf.RoundToInt(cube.speedTireR/CubeSimulator.VMeterOverU);
     _SetMotorSpeed(left, right);
 }
 ```
@@ -605,23 +594,166 @@ protected void _SetMotorSpeed(int left, int right)
 }
 ```
 
+### 磁石状態検出
+
+> 2.2.0 の機能です。
+
+CubeSimulator がシーンにある [Magnet Prefab](#6-Magnet-Prefab) を検索し、磁気センサーの位置での合成磁場ベクトルを求めます。
+
+```c#
+internal Vector3 _GetMagneticField()
+{
+    if (isSimulateMagneticSensor)
+    {
+        var magnetObjs = GameObject.FindGameObjectsWithTag("t4u_Magnet");
+        var magnets = Array.ConvertAll(magnetObjs, obj => obj.GetComponent<Magnet>());
+
+        Vector3 magSensor = transform.Find("MagneticSensor").position;
+
+        Vector3 h = Vector3.zero;
+        foreach (var magnet in magnets)
+        {
+            h += magnet.SumUpH(magSensor);
+        }
+
+        this._magneticField = new Vector3(h.z, h.x, -h.y);
+    }
+    return this._magneticField;
+}
+```
+
+磁場ベクトルの長さと方向によって、磁石状態が遷移します。
+
+```c#
+// CubeSimImpl_v2_2_0.cs
+protected virtual void SimulateMagnetState(Vector3 force)
+{
+    if (this.magneticMode != Cube.MagneticMode.MagnetState)
+    {
+        this.magnetState = Cube.MagnetState.None;
+        return;
+    }
+
+    var e = force.normalized;
+    var m = force.magnitude;
+    const float orientThreshold = 0.95f;
+    Cube.MagnetState state = this.magnetState;
+
+    if (m > 9000 && Vector3.Dot(e, Vector3.forward) > orientThreshold)
+        state = Cube.MagnetState.N_Center;
+    else if (m > 9000 && Vector3.Dot(e, Vector3.back) > orientThreshold)
+        state = Cube.MagnetState.S_Center;
+    else if (m > 6000 && Vector3.Dot(e, new Vector3(0, -1, 1).normalized) > orientThreshold)
+        state = Cube.MagnetState.N_Right;
+    else if (m > 6000 && Vector3.Dot(e, new Vector3(0, 1, 1).normalized) > orientThreshold)
+        state = Cube.MagnetState.N_Left;
+    else if (m > 6000 && Vector3.Dot(e, new Vector3(0, 1, -1).normalized) > orientThreshold)
+        state = Cube.MagnetState.S_Right;
+    else if (m > 6000 && Vector3.Dot(e, new Vector3(0, -1, -1).normalized) > orientThreshold)
+        state = Cube.MagnetState.S_Left;
+    else if (m < 200)
+        state = Cube.MagnetState.None;
+
+    _SetMagnetState(state);
+}
+```
+
+### 磁力の検出
+
+> 2.3.0 の機能です。
+
+磁場ベクトルをキューブ用の単位に変換します。
+
+```c#
+// CubeSimImpl_v2_3_0.cs
+protected virtual void SimulateMagneticForce(Vector3 force)
+{
+    if (this.magneticMode != Cube.MagneticMode.MagneticForce)
+    {
+        this.magneticForce = Vector3.zero;
+        return;
+    }
+
+    force /= 450;
+    var orient = force.normalized * 10;
+    int ox = Mathf.RoundToInt(orient.x);
+    int oy = Mathf.RoundToInt(orient.y);
+    int oz = Mathf.RoundToInt(orient.z);
+    int mag = Mathf.RoundToInt(force.magnitude);
+    Vector3 f = new Vector3(ox, oy, oz);
+    f.Normalize();
+    f *= mag;
+    _SetMagneticForce(f);
+}
+```
+
+### 姿勢角検出
+
+> 2.3.0 の機能です。
+
+Cube Prefab の Unity 座標系でのオイラー角から、仕様書で定義された座標系のオイラー角に変換します。<br>
+また、起動時に Yaw 基準値の設定と、Yaw の誤差累積も実装されています。
+
+```c#
+// CubeSimulator.cs
+private void _InitIMU()
+{
+    this._attitudeYawBias = transform.eulerAngles.y;
+}
+private void _SimulateIMU()
+{
+    this._attitudeYawBiasD += (UnityEngine.Random.value-0.5f) * 0.1f;
+    this._attitudeYawBiasD = Mathf.Clamp(this._attitudeYawBiasD, -1, 1);
+    this._attitudeYawBias += (this._attitudeYawBiasD + UnityEngine.Random.value-0.5f) * 0.01f;
+}
+internal Vector3 _GetIMU()
+{
+    var e = transform.eulerAngles;
+    float roll = e.z;
+    float pitch = e.x;
+    float yaw = e.y - this._attitudeYawBias;
+
+    return new Vector3(roll, pitch, yaw);
+}
+```
+
+仕様書座標系のオイラー角によって、CubeUnity クラスに送信するオイラー角とクォータニオンを作成します。<br>
+現時点（2021.09.01）では、リアルのコアキューブのクォータニオンがオイラーと別々の座標系のものになっていますので、シミュレーターでも同じく再現しています。（仕様書座標系に一致しているのはオイラーの方です。）
+
+```c#
+// CubeSimImpl_v2_3_0.cs
+private float attitudeInitialYaw = 0;
+protected virtual void SimulateAttitudeSensor()
+{
+    var e = cube._GetIMU();
+    int cvt(float f) { return (Mathf.RoundToInt(f) + 180) % 360 - 180; }
+    var eulers = new Vector3(cvt(e.x), cvt(e.y), cvt(e.z));
+
+    // NOTE Reproducing real firmware's BUG
+    var quat = Quaternion.Euler(0, 0, -e.z) * Quaternion.Euler(0, -e.y, 0) * Quaternion.Euler(e.x+180, 0, 0);
+    quat = new Quaternion(Mathf.Floor(quat.x*10000)/10000f, Mathf.Floor(quat.y*10000)/10000f,
+                            Mathf.Floor(quat.z*10000)/10000f, Mathf.Floor(quat.w*10000)/10000f);
+
+    _SetAttitude(eulers, quat);
+}
+```
+
+<br>
+
 ## 4.3. コマンドの実行
 
 ### 命令処理の流れ
 
-CubeSimulator.cs は以下の図のようなロジックで [CubeUnity](sys_cube.md#2-cube-クラスの構造) から渡された命令を処理しています。
+シミュレータは以下のようなロジックで [CubeUnity](sys_cube.md#2-cube-クラスの構造) から渡された命令を処理しています。
 
-<div align="center">
-<img width=600 src="res/simulator/cube_logic.png">
-</div>
-
-- CubeUnity がメソッドを呼び出す際に、命令と命令をセットした時間をキューに入れる
+- CubeUnity が CubeSimulator のメソッドを呼び出すと
+  - 遅延 (Delay) 後に実装メソッドを呼び出すコルーチンを開始する
+  - 実装メソッドでは、受け取った命令をメンバー変数の「実行中命令」に保持する
 - 毎フレーム実行される FixedUpdate() の中で以下のように処理する
-  - キューから `受け取った時間 + ラグ ＞ 現在時間` を満たす命令をポップし、 Current Order にセットする
-  - Current Order の継続時間が終わったかを判断し、是の場合 Current Order をクリアする
-  - Current Order を実行する
+  - 「実行中命令」を実行する
+  - 「実行中命令」が終了した場合はクリアする
 
-> Cube Prefab のラグ (Delay) は実環境で実測した値をセットしています。デバイス、環境等によってかわる可能性があります。
+> Cube Prefab の遅延 (Delay) パラメータは実環境で実測した値を設定しています。デバイス、環境等によってかわる可能性があります。
 
 ### モーター
 
@@ -631,7 +763,7 @@ CubeSimulator.cs は以下の図のようなロジックで [CubeUnity](sys_cube
 // CubeSimulator.cs
 internal bool offGroundL = true;
 internal bool offGroundR = true;
-private void SimulatePhysics()
+private void SimulatePhysics_Input()
 {
     // タイヤの着地状態を調査
     // Check if tires are Off Ground
@@ -643,40 +775,33 @@ private void SimulatePhysics()
 }
 ```
 
-現在のモーター制御命令の目標速度を Unity 座標系での速度に変換し、デッドゾーンを加え、
+現在のモーター制御命令の目標速度を Unity 座標系での速度に変換し、
 強制停止・押された場合によってタイヤ速度を計算してから、着地状態によって Cube 速度を計算し、`CubeSimulator._SetSpeed` に渡します。
 
 ```C#
-// CubeSimImpl.cs
-public virtual void SimulateMotor()
+// CubeSimulator.cs
+private void SimulatePhysics_Output()
 {
-    var dt = Time.deltaTime;
-
-    // 目標速度を計算
-    // target speed
-    float targetSpeedL = motorLeft * CubeSimulator.VDotOverU / Mat.DotPerM;
-    float targetSpeedR = motorRight * CubeSimulator.VDotOverU / Mat.DotPerM;
-    if (Mathf.Abs(motorLeft) < deadzone) targetSpeedL = 0;
-    if (Mathf.Abs(motorRight) < deadzone) targetSpeedR = 0;
-
-    // 速度更新
-    // update tires' speed
-    if (cube.forceStop || this.button)   // 強制的に停止
+    // タイヤ速度を更新
+    if (this.forceStop || this.button || !this.isConnected)   // 強制的に停止
     {
         speedTireL = 0; speedTireR = 0;
     }
     else
     {
-        speedTireL += (targetSpeedL - speedTireL) / Mathf.Max(cube.motorTau,dt) * dt;
-        speedTireR += (targetSpeedR - speedTireR) / Mathf.Max(cube.motorTau,dt) * dt;
+        var dt = Time.fixedDeltaTime;
+        speedTireL += (motorTargetSpdL - speedTireL) / Mathf.Max(this.motorTau, dt) * dt;
+        speedTireR += (motorTargetSpdR - speedTireR) / Mathf.Max(this.motorTau, dt) * dt;
     }
 
+    // 着地状態により、キューブの速度を取得
     // update object's speed
     // NOTES: simulation for slipping shall be implemented here
-    speedL = cube.offGroundL? 0: speedTireL;
-    speedR = cube.offGroundR? 0: speedTireR;
+    speedL = offGroundL? 0: speedTireL;
+    speedR = offGroundR? 0: speedTireR;
 
-    cube._SetSpeed(speedL, speedR);
+    // Output
+    _SetSpeed(speedL, speedR);
 }
 ```
 
@@ -717,7 +842,7 @@ internal void _SetSpeed(float speedL, float speedR)
 
 ```c#
 // CubeSimImpl_v2_1_0.cs
-protected (float, float) TargetMove_MoveControl(ushort x, ushort y, byte maxSpd, Cube.TargetSpeedType targetSpeedType, float acc, Cube.TargetMoveType targetMoveType)
+protected (float, float) TargetMove_MoveControl(float elipsed, ushort x, ushort y, byte maxSpd, Cube.TargetSpeedType targetSpeedType, float acc, Cube.TargetMoveType targetMoveType)
 {
     // ...
     Vector2 targetPos = new Vector2(x, y);
@@ -795,14 +920,19 @@ import numpy as np
 import wave
 import struct
 
-nsamples = 32
-audio_array = [int(-np.cos(2*np.pi*i/nsamples)*127) for i in range(nsamples)]
+nsamples = 32  # samples in 1 period
+sin_array = [int(-np.cos(2*np.pi*i/nsamples)*127) for i in range(nsamples)]
 
 f_A0 = 440/16
-audio = struct.pack("b" * len(audio_array), *audio_array)
+
+duration = 0.0233   # Since Unity 2020, audio shorter than this will not be imported correctly
 
 for i in range(11):
     f = f_A0 * 2**i
+    T = 1/f
+
+    audio_array = sin_array * np.ceil(duration/T).astype(int)
+    audio = struct.pack("b" * len(audio_array), *audio_array)
 
     w = wave.Wave_write(str(12*i+9) + '.wav')
     p = (1, 1, nsamples*f, len(audio), 'NONE', 'not compressed')
@@ -814,7 +944,7 @@ for i in range(11):
 </details>
 <br>
 
-この音声ファイルを [toio™コア キューブ 技術仕様/通信仕様/各種機能/サウンド](<(https://toio.github.io/toio-spec/docs/ble_sound#midi-note-number-%E3%81%A8-note-name)>) の対応表にしたがって名前を付け、「Assets/toio-sdk/Scripts/Simulator/Resources/Octave」 に配置しています。
+この音声ファイルを [toio™コア キューブ 技術仕様/通信仕様/各種機能/サウンド](https://toio.github.io/toio-spec/docs/ble_sound#midi-note-number-と-note-name) の対応表にしたがって名前を付け、「Assets/toio-sdk/Scripts/Simulator/Resources/Octave」 に配置しています。
 
 
 #### 再生
@@ -835,7 +965,7 @@ internal void _PlaySound(int soundId, int volume){
         audioSource.pitch = (float)Math.Pow(2, ((float)idx-9)/12);
         audioSource.clip = aCubeOnSlot;
     }
-    audioSource.volume = (float)volume/256;
+    audioSource.volume = (float)volume/256 * 0.5f;
     if (!audioSource.isPlaying)
         audioSource.Play();
 }
@@ -939,3 +1069,42 @@ private void OnLeftDown()
 
 プロパティ `focusName` でフォーカスの対象のキューブの名前を取得することが出来ます。<br>
 多数のキューブを使った処理のデバッグをする際、個々のキューブの動作をチェックするのに役立ちます。
+
+<br>
+
+# 6. Magnet Prefab
+
+Magnet Prefab には、スクリプト Magnet.cs がアタッチされています。
+
+また、Magnet Prefab が内包した磁荷を表す子オブジェクト達にもスクリプト Magnet.cs がアタッチされていますが、
+親オブジェクト Magnet だけのタグが `t4u_Magnet` であるため、CubeSimulator は親オブジェクトだけを一個の磁石として認識します。
+
+Magnet.cs は自身で定義した磁場が指定位置におくベクトルを計算できます。
+
+```c#
+public Vector3 GetSelfH(Vector3 pos)
+{
+    var src = transform.position;
+    var dpos = pos - src;
+    var r = dpos.magnitude;
+    if (r > maxDistance) return Vector3.zero;
+    return maxwell * 10e-8f / (4 * Mathf.PI * mu * r * r * r) * dpos;
+}
+```
+
+Magnet Prefab の親オブジェクトとすべての子オブジェクトにアタッチされる Magnet.cs が定義した合成磁場を再帰的に求められます。
+
+```c#
+public Vector3 SumUpH(Vector3 pos)
+{
+    if (Vector3.Distance(pos, transform.position) > maxDistance) return Vector3.zero;
+
+    var magnets = GetComponentsInChildren<Magnet>();
+    Vector3 h = Vector3.zero;
+    foreach (var magnet in magnets)
+    {
+        h += magnet.GetSelfH(pos);
+    }
+    return h;
+}
+```

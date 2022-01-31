@@ -11,6 +11,8 @@ Assets/toio-sdk/Samples/Sample_Bluetooth/Sample_Bluetooth.unity
 
 # toio SDK for Unity
 
+> **Switch Language:**　`日本語`　|　[`English`](README_EN.md)
+
 ## 概要
 
 **toio SDK for Unity** は、Unity で toio™コア キューブ（以降キューブ）を制御するための開発環境です。
@@ -71,7 +73,7 @@ public class Hello_Toio : MonoBehaviour
   - iOS アプリでキューブと通信する
   - ウェブアプリでキューブと通信する
   - Android アプリでキューブと通信する
-  - （開発中：MacのUnity EditorでPlay時にキューブと通信する）
+  - MacのUnity EditorでPlay時にキューブと通信する
 - Cube
   - 一つのソースコードで、シミュレータとリアルの両方のキューブを同じく動かせる
   - キューブをスキャン、接続、再接続できる
@@ -93,8 +95,8 @@ public class Hello_Toio : MonoBehaviour
 - Mac（macOS ver.10.14以上）
 - Windows 10（64 ビット版のみ）
 - iOS端末（iOS ver.12以上）
-- Android端末(Android OS 9.0以上 ※Experimentalで対応中。)
-- Unity（2019.4 LTS）
+- Android端末(Android OS 9.0以上)
+- Unity（2020.3.17f1 LTS）
 
 
 ## ドキュメント
@@ -102,6 +104,10 @@ public class Hello_Toio : MonoBehaviour
 インストール、チュートリアル、サンプル紹介、機能解説などの詳細については以下のドキュメントをご参照ください。
 
 - [「toio SDK for Unity ドキュメント」](docs/README.md)
+
+## サンプルアプリ
+
+- [CubeMarker](https://github.com/morikatron/toio-cube-marker)：オンライン対戦サンプルプログラム
 
 ## ライセンス
 

@@ -20,6 +20,8 @@ namespace toio
         public abstract string id { get; protected set; }
         // コアキューブのアドレス
         public abstract string addr { get; }
+        // Complete local name
+        public abstract string localName { get; }
         // コアキューブの接続状態
         public abstract bool isConnected { get; }
         // コアキューブのバッテリー状態
@@ -74,6 +76,26 @@ namespace toio
         public virtual int rightSpeed {
             get{NotSupportedWarning(); return default;}
             protected set{NotSupportedWarning();}}
+        // コアキューブの磁石状態
+        public virtual MagnetState magnetState {
+            get{NotSupportedWarning(); return default;}
+            protected set{NotSupportedWarning();}}
+
+        // ver2.3.0
+        // コアキューブの磁力
+        public virtual Vector3 magneticForce {
+            get{NotSupportedWarning(); return default;}
+            protected set{NotSupportedWarning();}}
+
+        // コアキューブのオイラー
+        public virtual Vector3 eulers {
+            get{NotSupportedWarning(); return default;}
+            protected set{NotSupportedWarning();}}
+        // コアキューブのクォータニオン
+        public virtual Quaternion quaternion {
+            get{NotSupportedWarning(); return default;}
+            protected set{NotSupportedWarning();}}
+
 
         //_/_/_/_/_/_/_/_/_/_/_/_/_/
         //      仮想関数
@@ -248,6 +270,7 @@ namespace toio
             ORDER_TYPE order = ORDER_TYPE.Strong
         ){ NotSupportedWarning(); }
 
+        /// <summary>
         /// キューブのモーター速度情報の取得の有効化・無効化を設定します
         /// https://toio.github.io/toio-spec/docs/ble_configuration#モーターの速度情報の取得の設定
         /// </summary>
@@ -256,6 +279,96 @@ namespace toio
         /// <param name="callback">終了コールバック(設定成功フラグ, キューブ)</param>
         /// <param name="order">命令の優先度</param>
         public virtual UniTask ConfigMotorRead(bool valid, float timeOutSec = 0.5f, Action<bool,Cube> callback = null, ORDER_TYPE order = ORDER_TYPE.Strong) { NotSupportedWarning(); return UniTask.CompletedTask; }
+
+        /// <summary>
+        /// 読み取りセンサーの Position ID および Standard ID の通知頻度を設定します。「最小通知間隔」と「通知条件」の両方を満たした場合に通知が行われます。
+        /// https://toio.github.io/toio-spec/docs/ble_configuration#読み取りセンサーの-id-通知設定
+        /// </summary>
+        /// <param name="intervalMs">最小通知間隔(ミリ秒) 精度10ms</param>
+        /// <param name="notificationType">通知条件</param>
+        /// <param name="timeOutSec">タイムアウト(秒)</param>
+        /// <param name="callback">終了コールバック(設定成功フラグ, キューブ)</param>
+        /// <param name="order">命令の優先度</param>
+        public virtual UniTask ConfigIDNotification(int intervalMs, IDNotificationType notificationType = IDNotificationType.Balanced,
+            float timeOutSec = 0.5f, Action<bool,Cube> callback = null, ORDER_TYPE order = ORDER_TYPE.Strong) { NotSupportedWarning(); return UniTask.CompletedTask; }
+
+        /// <summary>
+        /// 読み取りセンサーの Position ID missed および Standard ID missed の通知感度を設定します。
+        /// https://toio.github.io/toio-spec/docs/ble_configuration#読み取りセンサーの-id-missed-通知設定
+        /// </summary>
+        /// <param name="sensitivityMs">通知感度(ミリ秒) 精度10ms</param>
+        /// <param name="timeOutSec">タイムアウト(秒)</param>
+        /// <param name="callback">終了コールバック(設定成功フラグ, キューブ)</param>
+        /// <param name="order">命令の優先度</param>
+        public virtual UniTask ConfigIDMissedNotification(int sensitivityMs,
+            float timeOutSec = 0.5f, Action<bool,Cube> callback = null, ORDER_TYPE order = ORDER_TYPE.Strong) { NotSupportedWarning(); return UniTask.CompletedTask; }
+
+        /// <summary>
+        /// キューブの磁気センサーの機能のモードを設定します。デフォルトでは無効化されています。(v2.2.0から対応)
+        /// https://toio.github.io/toio-spec/docs/ble_configuration#磁気センサーの設定
+        /// </summary>
+        /// <param name="mode">モード</param>
+        /// <param name="timeOutSec">タイムアウト(秒)</param>
+        /// <param name="callback">終了コールバック(設定成功フラグ, キューブ)</param>
+        /// <param name="order">命令の優先度</param>
+        public virtual UniTask ConfigMagneticSensor(MagneticMode mode, float timeOutSec = 0.5f, Action<bool,Cube> callback = null, ORDER_TYPE order = ORDER_TYPE.Strong) { NotSupportedWarning(); return UniTask.CompletedTask; }
+
+        /// <summary>
+        /// キューブの磁気センサーの機能のモードを設定します。デフォルトでは無効化されています。(v2.3.0から対応)
+        /// https://toio.github.io/toio-spec/docs/ble_configuration#磁気センサーの設定
+        /// </summary>
+        /// <param name="mode">モード</param>
+        /// <param name="intervalMs">通知間隔(ミリ秒) 精度20ms (v2.3.0以上対応)</param>
+        /// <param name="notificationType">通知条件 (v2.3.0以上対応)</param>
+        /// <param name="timeOutSec">タイムアウト(秒)</param>
+        /// <param name="callback">終了コールバック(設定成功フラグ, キューブ)</param>
+        /// <param name="order">命令の優先度</param>
+        public virtual UniTask ConfigMagneticSensor(MagneticMode mode, int intervalMs, MagneticNotificationType notificationType,
+            float timeOutSec = 0.5f, Action<bool,Cube> callback = null, ORDER_TYPE order = ORDER_TYPE.Strong) { NotSupportedWarning(); return UniTask.CompletedTask; }
+
+        /// <summary>
+        /// キューブの姿勢角検出機能の有効化・無効化を設定します。デフォルトでは無効化されています。(v2.3.0から対応)
+        /// https://toio.github.io/toio-spec/docs/ble_configuration#姿勢角検出の設定
+        /// </summary>
+        /// <param name="format">通知内容の種類</param>
+        /// <param name="intervalMs">通知間隔(ミリ秒) 精度10ms</param>
+        /// <param name="notificationType">通知条件</param>
+        /// <param name="timeOutSec">タイムアウト(秒)</param>
+        /// <param name="callback">終了コールバック(設定成功フラグ, キューブ)</param>
+        /// <param name="order">命令の優先度</param>
+        public virtual UniTask ConfigAttitudeSensor(AttitudeFormat format, int intervalMs, AttitudeNotificationType notificationType,
+            float timeOutSec = 0.5f, Action<bool,Cube> callback = null, ORDER_TYPE order = ORDER_TYPE.Strong) { NotSupportedWarning(); return UniTask.CompletedTask; }
+
+        /// <summary>
+        /// モーションセンサー情報を要求します
+        /// https://toio.github.io/toio-spec/docs/ble_sensor#モーション検出情報の要求
+        /// </summary>
+        /// <param name="order">命令の優先度</param>
+        public virtual void RequestMotionSensor(ORDER_TYPE order = ORDER_TYPE.Strong) { NotSupportedWarning(); }
+
+        /// <summary>
+        /// (Deprecated. RequestMotionSensor を使ってください) モーションセンサー情報を要求します
+        /// https://toio.github.io/toio-spec/docs/ble_sensor#モーション検出情報の要求
+        /// </summary>
+        /// <param name="order">命令の優先度</param>
+        [Obsolete("RequestSensor is deprecated. Use RequestMotionSensor instead.", false)]
+        public void RequestSensor(ORDER_TYPE order = ORDER_TYPE.Strong) { RequestMotionSensor(order); }
+
+        /// <summary>
+        /// 磁気センサー情報を要求します
+        /// https://toio.github.io/toio-spec/docs/ble_magnetic_sensor#磁気センサー情報の要求
+        /// </summary>
+        /// <param name="order">命令の優先度</param>
+        public virtual void RequestMagneticSensor(ORDER_TYPE order = ORDER_TYPE.Strong) { NotSupportedWarning(); }
+
+        /// <summary>
+        /// 姿勢角検出情報を要求します
+        /// https://toio.github.io/toio-spec/docs/ble_high_precision_tilt_sensor#姿勢角検出の要求
+        /// </summary>
+        /// <param name="format">通知内容の種類（オイラーかクォータニオンか）</param>
+        /// <param name="order">命令の優先度</param>
+        public virtual void RequestAttitudeSensor(AttitudeFormat format, ORDER_TYPE order = ORDER_TYPE.Strong) { NotSupportedWarning(); }
+
 
         //_/_/_/_/_/_/_/_/_/_/_/_/_/
         //      コールバック
@@ -291,6 +404,16 @@ namespace toio
         public virtual CallbackProvider<Cube> shakeCallback { get { return CallbackProvider<Cube>.NotSupported.Get(this); } }
         // モータースピードコールバック
         public virtual CallbackProvider<Cube> motorSpeedCallback { get { return CallbackProvider<Cube>.NotSupported.Get(this); } }
+        // 磁石状態コールバック
+        public virtual CallbackProvider<Cube> magnetStateCallback { get { return CallbackProvider<Cube>.NotSupported.Get(this); } }
+
+        // ver2.3.0
+        // 磁力検出コールバック
+        public virtual CallbackProvider<Cube> magneticForceCallback { get { return CallbackProvider<Cube>.NotSupported.Get(this); } }
+
+        // 姿勢角検出コールバック
+        public virtual CallbackProvider<Cube> attitudeCallback { get { return CallbackProvider<Cube>.NotSupported.Get(this); } }
+
 
         public Cube()
         {
@@ -408,6 +531,47 @@ namespace toio
             Right=5,
             Left=6
         };
+
+        // ID 通知条件
+        public enum IDNotificationType: byte
+        {
+            Always = 0,
+            OnChanged = 1,
+            Balanced = 0xff
+        }
+
+        // 磁気センサーの設定 https://toio.github.io/toio-spec/docs/ble_configuration#_磁気センサーの設定_
+        public enum MagneticMode: byte
+        {
+            Off = 0, MagnetState = 1, MagneticForce = 2
+        }
+
+        // 磁石の状態 https://toio.github.io/toio-spec/docs/2.2.0/hardware_magnet#磁石のレイアウト仕様
+        public enum MagnetState: byte
+        {
+            None = 0, // 未装着
+            S_Center = 1, N_Center = 2,
+            S_Right = 3, N_Right = 4,
+            S_Left = 5, N_Left = 6
+        }
+
+        // 磁気センサーの設定 https://toio.github.io/toio-spec/docs/ble_configuration#通知条件-1
+        public enum MagneticNotificationType: byte
+        {
+            Always = 0, OnChanged = 1
+        }
+
+        // 姿勢角検出の設定 https://toio.github.io/toio-spec/docs/ble_configuration#通知条件-2
+        public enum AttitudeFormat: byte
+        {
+            Eulers = 1, Quaternion = 2
+        }
+
+        // 姿勢角検出の設定 https://toio.github.io/toio-spec/docs/ble_configuration#通知条件-2
+        public enum AttitudeNotificationType: byte
+        {
+            Always = 0, OnChanged = 1
+        }
 
         // 効果音
         public enum NOTE_NUMBER : byte
@@ -596,9 +760,9 @@ namespace toio
             }
             public virtual void Notify(T1 p1)
             {
-                foreach (var listener in this.listenerList)
+                for (int i = this.listenerList.Count-1; i >= 0; i--)
                 {
-                    listener.Invoke(p1);
+                    this.listenerList[i].Invoke(p1);
                 }
             }
         }
@@ -649,9 +813,9 @@ namespace toio
             }
             public virtual void Notify(T1 p1, T2 p2)
             {
-                foreach (var listener in this.listenerList)
+                for (int i = this.listenerList.Count-1; i >= 0; i--)
                 {
-                    listener.Invoke(p1, p2);
+                    this.listenerList[i].Invoke(p1, p2);
                 }
             }
         }
@@ -702,9 +866,9 @@ namespace toio
             }
             public virtual void Notify(T1 p1, T2 p2, T3 p3)
             {
-                foreach (var listener in this.listenerList)
+                for (int i = this.listenerList.Count-1; i >= 0; i--)
                 {
-                    listener.Invoke(p1, p2, p3);
+                    this.listenerList[i].Invoke(p1, p2, p3);
                 }
             }
         }
@@ -755,9 +919,9 @@ namespace toio
             }
             public virtual void Notify(T1 p1, T2 p2, T3 p3, T4 p4)
             {
-                foreach (var listener in this.listenerList)
+                for (int i = this.listenerList.Count-1; i >= 0; i--)
                 {
-                    listener.Invoke(p1, p2, p3, p4);
+                    this.listenerList[i].Invoke(p1, p2, p3, p4);
                 }
             }
         }

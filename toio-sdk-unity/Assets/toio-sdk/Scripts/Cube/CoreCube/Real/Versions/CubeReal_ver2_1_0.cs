@@ -34,8 +34,7 @@ namespace toio
         // 複数目標指定付きモーター制御の応答コールバック
         // public override CallbackProvider<Cube, int, TargetMoveRespondType> multiTargetMoveCallback { get { return this._multiTargetMoveCallback; } }
 
-        public CubeReal_ver2_1_0(BLEPeripheralInterface peripheral, Dictionary<string, BLECharacteristicInterface> characteristicTable)
-        : base(peripheral, characteristicTable)
+        public CubeReal_ver2_1_0(BLEPeripheralInterface peripheral) : base(peripheral)
         {
         }
 
@@ -295,9 +294,9 @@ namespace toio
         protected override void Recv_sensor(byte[] data)
         {
             base.Recv_sensor(data);
-
-            // https://toio.github.io/toio-spec/docs/2.1.0/ble_sensor
             int type = data[0];
+
+            // Motion Sensor https://toio.github.io/toio-spec/docs/2.1.0/ble_sensor
             if (1 == type)
             {
                 var _isDoubleTap = data[3] == 1 ? true : false;
@@ -306,7 +305,8 @@ namespace toio
                 if (_isDoubleTap != this.isDoubleTap)
                 {
                     this.isDoubleTap = _isDoubleTap;
-                    this.doubleTapCallback.Notify(this);
+                    if (_isDoubleTap)
+                        this.doubleTapCallback.Notify(this);
                 }
 
                 if (_pose != this.pose)

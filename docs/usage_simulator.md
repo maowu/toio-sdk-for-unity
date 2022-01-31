@@ -13,12 +13,16 @@
 - [4. Cube Prefab](usage_simulator.md#4-Cube-Prefab)
   - [4.1. CubeSimulator のインスペクター](usage_simulator.md#41-CubeSimulator-のインスペクター)
   - [4.2. CubeSimulator の定数](usage_simulator.md#42-CubeSimulator-の定数)
-  - [4.3. CubeSimulator の変数](usage_simulator.md#43-CubeSimulator-の変数)
+  - [4.3. CubeSimulator のプロパティ](usage_simulator.md#43-CubeSimulator-のプロパティ)
   - [4.4. CubeSimulator のメソッド](usage_simulator.md#44-CubeSimulator-のメソッド)
   - [4.5. Cube オブジェクトの操作 (CubeInteraction)](usage_simulator.md#45-Cube-オブジェクトの操作-CubeInteraction)
-- [5. Stage-Prefab](usage_simulator.md#5-Stage-Prefab)
+- [5. Stage Prefab](usage_simulator.md#5-Stage-Prefab)
   - [5.1. ターゲットポール](usage_simulator.md#51-ターゲットポール)
   - [5.2. キューブをフォーカス](usage_simulator.md#52-キューブをフォーカス)
+- [6. Magnet Prefab](#6-Magnet-Prefab)
+  - [6.1. インスペクターでのパラメーター](#61-インスペクターでのパラメーター)
+  - [6.2. メソッド](#62-メソッド)
+  - [6.3. 磁石を自作](#63-磁石を自作)
 
 # 1. 概説
 
@@ -64,7 +68,7 @@ Unity のインスペクターで、スクリプト Mat.cs の「タイプ」リ
 
  > ※ toio™開発用プレイマット（仮称）#1 ~ #6 の表面は、toio™コア キューブ（単体）付属の簡易プレイマットと同じ仕様なので、一つのタイプ「簡易マット・開発用マット（表面）1~6」にまとめています。
 
-各タイプの仕様は、[toio™コア キューブ 技術仕様](https://toio.github.io/toio-spec/docs/info_position_id) と [『開発者向けマット（仮称）』](https://toio.io/blog/detail/20200423-1.html) を参考してください。
+各タイプの仕様は、[toio™コア キューブ 技術仕様](https://toio.github.io/toio-spec/docs/hardware_position_id) と [『開発者向けマット（仮称）』](https://toio.io/blog/detail/20200423-1.html) を参考にしてください。
 
 ## 2.2. 定数
 
@@ -192,7 +196,7 @@ Unity のインスペクターで、スクリプト Mat.cs の「タイトル」
 - トイオ・コレクション
 - 簡易カード
 
-「タイプ」については、[toio™コア キューブ 技術仕様](https://toio.github.io/toio-spec/docs/info_standard_id)を参照してください。
+「タイプ」については、[toio™コア キューブ 技術仕様](https://toio.github.io/toio-spec/docs/hardware_standard_id)を参照してください。
 
 
 ## 3.2. メソッド
@@ -245,31 +249,45 @@ Cube Prefab はシーンの中に複数台配置することが出来ます。 �
 
 【シミュレータの設定】と【手動でキューブの状態を変更】との二つの部分に分けられています。
 
-### シミュレータの設定
+### シミュレータの設定（非実行時）
 
 <div align="center"><img src="res/usage_simulator/cube_setting.png"></div>
 
-- `Version`： ファームウェアのバージョン。実行時は変更不可。
-- `Motor Tau`： モーターの一次遅れ要素のパラメーター。実行時は変更不可。
-- `Delay`： 通信の遅延(指令の送信から取得した座標が変わるまでのラグ)。実行時は変更不可。
+- `Version`： ファームウェアのバージョン。
+- `Power Start`： キューブ電源の初期状態。
+- `Motor Tau`： モーターの一次遅れ要素のパラメーター。
+- `Delay`： 通信の遅延(指令の送信から取得した座標が変わるまでのラグ)。
 - `Force Stop`: チェックすると、モーターの出力を強制的に停止させる。
 
-### 手動でキューブの状態を変更
+### シミュレータの情報（実行時）
+
+<div align="center"><img src="res/usage_simulator/cube_info.png"></div>
+
+- `Version`： ファームウェアのバージョン。変更不可。
+- `Power`： キューブの電源。
+- `Running`： 起動されて、接続可能な状態。
+- `Connected`： 接続されたか否か。
+- `Force Stop`: チェックすると、モーターの出力を強制的に停止させる。
+
+### 手動でキューブの状態を変更（実行時）
 
 <div align="center"><img src="res/usage_simulator/cube_states.png"></div>
 
-実行時のみに表示されます。
+>接続された状態のみに表示されます。
 
 シミュレータ上でリアルに再現するのが難しい、或いは操作しにくい場合、インスペクターでキューブの状態を変更し、対応イベントを起こすことが出来ます。
 
-- `button 状態`：チェック入れると、ボタンを押したままの状態になります。押された状態ではキューブは動くことが出来ないので、再びキューブを動かしたい場合にはチェックを外しボタンを放した上にする必要があります。また、マウスの操作でボタン状態を変更した場合、この設定が上書きされます。
-- `【sloped の変更を手動で行う】`：チェックすると、`sloped 状態` が表示され設定を変更できるようになります。
-（通常はシミュレータが毎フレームsloped状態をセットしていますが、この設定が有効な場合はシミュレータがsloped状態をセットしないようになります。）
-  - `sloped 状態`：キューブが斜面にいるかを示します。
-- `collisionDetected 状態`：衝突を検出したか否かを示します。(現在、シミュレータにはキューブの衝突を検出する機能は実装されていません）
-- `doubleTap 状態`：ダブルタップされたかを示します。（現在、シミュレータにはキューブがダブルタップされたことを検出する機能は実装されていません）
-- `pose 状態`：キューブの姿勢を表示・変更できます。
-- `shake レベル`：シェイクの強さを示します。（現在、シミュレータにはキューブがシェイクされたことを検出する機能は実装されていません）
+- `button`： チェックを入れると、ボタンを押したままの状態になります。押された状態ではキューブは動くことが出来ません。また、マウスの操作でボタン状態を変更した場合、この設定が上書きされます。
+- `【Change sloped Manually】`： チェックすると、`sloped` が表示され設定を変更できるようになります。
+（通常はシミュレータが毎フレームsloped状態をセットしていますが、この設定が有効な場合はシミュレータが `sloped` をセットしないようになります。）
+  - `sloped`： キューブが斜面にいるかを示します。
+- `Trigger Collision`： 衝突を発生させるボタンです。(現在、ゲームエンジンで物理的な衝突シミュレーションは実装されていません）
+- `Trigger DoubleTap`： ダブルタップを発生させるボタンです。（現在、ゲームエンジンで物理なダブルタップ・シミュレーションは実装されていません）
+- `pose`： キューブの姿勢を表示・変更できます。
+- `shake level`： シェイクの強さを示します。（現在、シミュレータにはキューブがシェイクされたことを検出する機能は実装されていません）
+- `【Change Magnetic Sensor Manually】`： チェックすると、`magnet state`と`magnetic force` が表示され設定を変更できるようになります。この場合、シーンの中に存在する Magnet Prefab からの磁力は受けません。
+  - `magnet state`： いずれかの状態を選択すると、相応な磁力がキューブに与えられます。通知タイプが `Magnet State` でない場合、与えられる磁力は変更されますが、表示される `magnet state` は `None` のままになります。
+  - `magnetic force`： 入力した磁力をキューブの磁気センサーに与えます。`Cube.magneticForce` には等しくありません。
 
 ## 4.2. CubeSimulator の定数
 
@@ -284,16 +302,20 @@ public static readonly float WidthM= 0.0318f;
 public static readonly float VDotOverU =  4.3f*Mathf.PI*0.0125f/60 * Mat.DotPerM; // about 2.06
 ```
 
-## 4.3. CubeSimulator の変数
+## 4.3. CubeSimulator のプロパティ
 
 ```c#
-public int x { get; internal set; }        // マット上のｘ座標
-public int y { get; internal set; }        // マット上のｙ座標
-public int deg { get; internal set; }    // マット上の角度（度）
-public int xSensor { get; internal set; }        // 読み取りセンサーのマット上のｘ座標
-public int ySensor { get; internal set; }        // 読み取りセンサーのマット上のｙ座標
-public uint standardID { get; internal set; }  // 読み取った Standard ID
-public bool onMat { get; internal set; }    // Mat 上にあるか
+public bool power { get; set; }                 // 電源
+public bool isRunning { get; private set; }     // 稼働中か否か
+public int maxMotor { get; }                    // モーター指令最大値
+public int deadzone { get; }                    // モーター指令デッドゾーン
+public int x { get; internal set; }             // マット上のｘ座標
+public int y { get; internal set; }             // マット上のｙ座標
+public int deg { get; internal set; }           // マット上の角度（度）
+public int xSensor { get; internal set; }       // 読み取りセンサーのマット上のｘ座標
+public int ySensor { get; internal set; }       // 読み取りセンサーのマット上のｙ座標
+public uint standardID { get; internal set; }   // 読み取った Standard ID
+public bool onMat { get; internal set; }        // Mat 上にあるか
 public bool onStandardID { get; internal set; }   // StandardID 上にあるか
 public bool isGrounded { get {return onMat || onStandardID; } } // Mat 又は StandardID 上にあるか
 ```
@@ -317,7 +339,7 @@ CubeInteraction クラスは、Unity の EventSystem をベースに、Cube オ�
 
 ### Cube オブジェクトを左クリックで押す
 
-Cube オブジェクトを`左クリック`すると、対象の Cube オブジェクトの[底面のボタン](https://toio.github.io/toio-spec/docs/ble_button)を押すことができます。  
+Cube オブジェクトを`左クリック`すると、対象の Cube オブジェクトの[底面のボタン](https://toio.github.io/toio-spec/docs/ble_button)を押すことができます。
 
 > マウスの左ボタンを押し続けている間、Cube オブジェクトの底面ボタンは押され続けます。
 
@@ -413,4 +435,64 @@ public void SetNoFocus();
 ```
 
 フォーカスをキャンセルします。
+
+<br>
+
+# 6. Magnet Prefab
+
+Magnet Prefab は[仕様書](https://toio.github.io/toio-spec/docs/hardware_magnet#磁石の仕様)に規定された標準の磁石を模したゲームオブジェクトです。
+
+Magnet Prefab を Cube Prefab の付近に置くことで、磁気センサーをリアルのように作動させることが出来ます。
+
+<div align="center"><img src="res/usage_simulator/magnet.png"></div>
+
+## 6.1. インスペクターでのパラメーター
+
+<div align="center"><img src="res/usage_simulator/magnet_inspector.png"></div>
+
+- `Maxwell`：スクリプトがアタッチされたオブジェクトの位置に置く磁荷
+- `Relative Permeability`：相対透磁率
+- `Max Distance`：磁場を計算する範囲
+
+Magnet Prefab 自身（一番上の親オブジェクト）には磁荷が定義されておらず、複数の子オブジェクトに Magnet.cs がアタッチされ磁荷が定義されています。それらの磁荷によって、四角い磁石の磁場が擬似されています。
+
+## 6.2. メソッド
+
+### GetSelfH
+
+```c#
+public Vector3 GetSelfH(Vector3 pos);
+```
+
+定義された磁荷が指定位置に生成した磁場ベクトルを計算します。
+自オブジェクトとの距離が `Max Distance` より大きい場合、直接に 0 を戻します。
+
+- pos
+  - 定義：位置
+  - 範囲：任意
+- 戻り値
+  - 定義：磁場ベクトル
+
+### SumUpH
+
+```c#
+public Vector3 SumUpH(Vector3 pos);
+```
+
+自オブジェクト及び子オブジェクトに含まれるすべての磁荷が指定位置に生成した合成磁場ベクトルを計算します。
+自オブジェクトとの距離が `Max Distance` より大きい場合、直接に 0 を戻します。
+
+- pos
+  - 定義：位置
+  - 範囲：任意
+- 戻り値
+  - 定義：磁場ベクトル
+
+## 6.3. 磁石を自作
+
+以下の手順で Magnet Prefab を自作できます。
+
+- 親オブジェクトに Magnet.cs をアタッチします。磁荷は 0 にするのをおすすめします。
+- 子オブジェクトを作成し、Magnet.cs をアタッチし、磁荷を設定します。すべての磁荷の和が 0 であるようにしてください。
+- 親オブジェクトのタグを `t4u_Magnet` に変更します。これで CubeSimulator に認識されるようになります。子オブジェクトのタグは設定しないでください。
 

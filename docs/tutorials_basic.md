@@ -8,7 +8,7 @@
 - [4. 音を鳴らす](tutorials_basic.md#4-音を鳴らす)
 - [5. LED を発光する](tutorials_basic.md#5-LED-を発光する)
 - [6. toio IDの読み取り(Position ID & Standard ID)](tutorials_basic.md#6-toio-IDの読み取りPosition-ID--Standard-ID)
-- [7. イベントを検知(ボタン, 傾き, 衝突, 座標と角度, Standard ID)](tutorials_basic.md#7-イベントを検知ボタン-傾き-衝突-座標と角度-Standard-ID)
+- [7. センサーのイベントを検知](tutorials_basic.md#7-センサーのイベントを検知)
 - [8. 複数のキューブを動かす](tutorials_basic.md#8-複数のキューブを動かす)
 - [9. CubeManagerクラスを用いたソースコードの簡略化](tutorials_basic.md#9-cubemanagerクラスを用いたソースコードの簡略化)
 - [10. 途中接続/途中切断](tutorials_basic.md#10-途中接続--途中切断)
@@ -32,7 +32,7 @@
 
 1. 「ファイル > 新しいシーン」をクリックして、新しいシーンを作成します。
 2. ヒエラルキー上から「Main Camera」と「Directional Light」を削除
-3. プロジェクトウィンドウで「Assets/toio-sdk-unity/Assets/toio-sdk/Scripts/Simulator/Resources」フォルダを開きます。
+3. プロジェクトウィンドウで「Assets/toio-sdk/Scripts/Simulator/Resources」フォルダを開きます。
 4. 「Cube」Prefabファイルと「Stage」Prefabファイルをヒエラルキーにドラック&ドロップします。<br>
    ※「シーンビュー」に切り替えてマウス操作すれば「Cube」オブジェクトの移動も出来ます。
 5. ヒエラルキー上で右クリック、右クリックメニューから「空のオブジェクトを作成」をクリックし、「scene」という名前にします(※名前は自由です)。
@@ -297,7 +297,7 @@ Cube クラスの TurnLedOn メソッドでキューブ底面についている 
 ```C#
 //--------------------------------------------------------
 // 点灯・消灯
-// https://toio.github.io/toio-spec/docs/ble_light#点灯-消灯
+// https://toio.github.io/toio-spec/docs/ble_light#点灯消灯
 //--------------------------------------------------------
 
 // red   | 色の強さ | 範囲(0~255)
@@ -311,7 +311,7 @@ cube.TurnLedOn(int red, int green, int blue, int durationMs, ORDER_TYPE order=OR
 ```C#
 //--------------------------------------------------------
 // 連続的な点灯・消灯
-// https://toio.github.io/toio-spec/docs/ble_light#連続的な点灯-消灯
+// https://toio.github.io/toio-spec/docs/ble_light#連続的な点灯消灯
 //--------------------------------------------------------
 
 // durationMs | 持続時間 | 範囲(10~2550)
@@ -451,7 +451,7 @@ public class toioIDScene : MonoBehaviour
 
 <br>
 
-# 7. イベントを検知(ボタン, 傾き, 衝突, 座標と角度, Standard ID)
+# 7. センサーのイベントを検知
 
 > ※ この章のサンプルファイルは、「Assets/toio-sdk/Tutorials/1.Basic/5.Event/」 にあります。<br>
 > ※ この章のウェブアプリサンプルは[【コチラ】](https://morikatron.github.io/t4u/basic/event/)です。
@@ -460,9 +460,11 @@ public class toioIDScene : MonoBehaviour
 各イベントについては toio™コア キューブ技術仕様に準拠していますので、詳しくはそちらを参照してください。
 
 - ボタンイベント: https://toio.github.io/toio-spec/docs/ble_button
-- 傾き、衝突イベント: https://toio.github.io/toio-spec/docs/ble_sensor
+- 傾き、衝突、ダブルタップ、姿勢、シェイクイベント: https://toio.github.io/toio-spec/docs/ble_sensor
 - 座標角度、Standard ID イベント: https://toio.github.io/toio-spec/docs/ble_id
   - このイベントを検知するには、マットや Standard ID 上でキューブを動かす必要があります。
+- モーター速度検出イベント：https://toio.github.io/toio-spec/docs/ble_motor
+- 磁気センサーイベント：https://toio.github.io/toio-spec/docs/ble_magnetic_sensor
 
 ```C#
 // ボタンイベント
@@ -477,14 +479,33 @@ cube.collisionCallback.AddListener("EventScene", OnCollision);
 // 座標角度イベント
 // https://toio.github.io/toio-spec/docs/ble_id#position-id
 cube.idCallback.AddListener("EventScene", OnUpdateID);        // 更新
-cube.idMissedCallback.AddListener("EventScene", OnMissedID);　// ロスト
+cube.idMissedCallback.AddListener("EventScene", OnMissedID);  // ロスト
 // Standard IDイベント
 // https://toio.github.io/toio-spec/docs/ble_id#standard-id
 cube.standardIdCallback.AddListener("EventScene", OnUpdateStandardID);       // 更新
 cube.standardIdMissedCallback.AddListener("EventScene", OnMissedStandardID); // ロスト
+// 姿勢イベント
+// https://toio.github.io/toio-spec/docs/ble_sensor#姿勢検出
+cube.poseCallback.AddListener("EventScene", OnPose);
+// ダブルタップイベント
+// https://toio.github.io/toio-spec/docs/ble_sensor#ダブルタップ検出
+cube.doubleTapCallback.AddListener("EventScene", OnDoubleTap);
+// シェイクイベント
+// https://toio.github.io/toio-spec/docs/ble_sensor#シェイク検出
+cube.shakeCallback.AddListener("EventScene", OnShake);
+// モーター速度イベント
+// https://toio.github.io/toio-spec/docs/ble_motor#モーターの速度情報の取得
+cube.motorSpeedCallback.AddListener("EventScene", OnMotorSpeed);
+// 磁石状態イベント
+// https://toio.github.io/toio-spec/docs/ble_magnetic_sensor#磁石の状態
+cube.magnetStateCallback.AddListener("EventScene", OnMagnetState);
+// 磁力イベント
+// https://toio.github.io/toio-spec/docs/ble_magnetic_sensor#磁力の検出-
+cube.magneticForceCallback.AddListener("EventScene", OnMagneticForce);
+// 姿勢角イベント
+// https://toio.github.io/toio-spec/docs/ble_high_precision_tilt_sensor
+cube.attitudeCallback.AddListener("EventScene", OnAttitude);
 ```
-
-※傾き、衝突のイベントの検知はシミュレータ上では出来ません。 現実のキューブを使った場合にのみ動作します。
 
 <details>
 <summary>実行コード：（クリック展開）</summary>
@@ -510,11 +531,18 @@ public class EventScene : MonoBehaviour
         cube.standardIdCallback.AddListener("EventScene", OnUpdateStandardID);
         cube.idMissedCallback.AddListener("EventScene", OnMissedID);
         cube.standardIdMissedCallback.AddListener("EventScene", OnMissedStandardID);
-    }
+        cube.poseCallback.AddListener("EventScene", OnPose);
+        cube.doubleTapCallback.AddListener("EventScene", OnDoubleTap);
+        cube.shakeCallback.AddListener("EventScene", OnShake);
+        cube.motorSpeedCallback.AddListener("EventScene", OnMotorSpeed);
+        cube.magnetStateCallback.AddListener("EventScene", OnMagnetState);
+        cube.magneticForceCallback.AddListener("EventScene", OnMagneticForce);
+        cube.attitudeCallback.AddListener("EventScene", OnAttitude);
 
-    void Update()
-    {
-
+        // デフォルト状態がオフのセンサーを有効化
+        await cube.ConfigMotorRead(true);
+        await cube.ConfigAttitudeSensor(Cube.AttitudeFormat.Eulers, 100, Cube.AttitudeNotificationType.OnChanged);
+        await cube.ConfigMagneticSensor(Cube.MagneticMode.MagnetState);
     }
 
     void OnCollision(Cube c)
@@ -524,7 +552,7 @@ public class EventScene : MonoBehaviour
 
     void OnSlope(Cube c)
     {
-        cube.PlayPresetSound(8);
+        cube.PlayPresetSound(1);
     }
 
     void OnPressButton(Cube c)
@@ -560,6 +588,42 @@ public class EventScene : MonoBehaviour
     void OnMissedStandardID(Cube c)
     {
         Debug.LogFormat("Standard ID Missed.");
+    }
+
+    void OnPose(Cube c)
+    {
+        Debug.Log($"pose = {c.pose.ToString()}");
+    }
+
+    void OnDoubleTap(Cube c)
+    {
+        c.PlayPresetSound(3);
+    }
+
+    void OnShake(Cube c)
+    {
+        if (c.shakeLevel > 5)
+            c.PlayPresetSound(4);
+    }
+
+    void OnMotorSpeed(Cube c)
+    {
+        Debug.Log($"motor speed: left={c.leftSpeed}, right={c.rightSpeed}");
+    }
+
+    void OnMagnetState(Cube c)
+    {
+        Debug.Log($"magnet state: {c.magnetState.ToString()}");
+    }
+
+    void OnMagneticForce(Cube c)
+    {
+        Debug.Log($"magnetic force = {c.magneticForce}");
+    }
+
+    void OnAttitude(Cube c)
+    {
+        Debug.Log($"attitude = {c.eulers}");
     }
 }
 ```
@@ -763,6 +827,104 @@ public class CubeManagerScene_Multi : MonoBehaviour
             {
                 cube.Move(50, -50, 200);
             }
+        }
+    }
+}
+```
+
+### 切断と再接続を繰り返し
+
+#### 簡略前
+
+```C#
+public class CubeManagerScene_RawReconnect : MonoBehaviour
+{
+    float intervalTime = 0.05f;
+    float elapsedTime = 0;
+    Cube cube;
+    CubeConnecter connecter;
+
+    async void Start()
+    {
+        // モジュールを直接利用した場合:
+        var peripheral = await new NearestScanner().Scan();
+        connecter = new CubeConnecter();
+        cube = await connecter.Connect(peripheral);
+
+        // 切断・再接続のループを開始
+        if (cube != null) StartCoroutine(LoopConnection());
+    }
+
+    IEnumerator LoopConnection()
+    {
+        yield return new WaitForSeconds(3);
+
+        // 切断 （モジュールを直接利用した場合）
+        connecter.Disconnect(cube);
+        yield return new WaitUntil(() => !cube.isConnected);
+        yield return new WaitForSeconds(3);
+
+        // 再接続 （モジュールを直接利用した場合）
+        connecter.ReConnect(cube);
+        yield return new WaitUntil(() => cube.isConnected);
+
+        StartCoroutine(LoopConnection());
+    }
+
+    void Update()
+    {
+        // 回転（モジュールを直接利用した場合）
+        if (null == cube) { return; }
+        elapsedTime += Time.deltaTime;
+        if (intervalTime < elapsedTime)
+        {
+            elapsedTime = 0.0f;
+            cube.Move(50, -50, 200);
+        }
+    }
+}
+```
+
+#### 簡略後
+
+```C#
+public class CubeManagerScene_Reconnect : MonoBehaviour
+{
+    CubeManager cubeManager;
+    Cube cube;
+
+    async void Start()
+    {
+        // CubeManagerからモジュールを間接利用した場合:
+        cubeManager = new CubeManager();
+        cube = await cubeManager.SingleConnect();
+
+        // 切断・再接続のループを開始
+        if (cube != null) StartCoroutine(LoopConnection());
+    }
+
+    IEnumerator LoopConnection()
+    {
+        yield return new WaitForSeconds(3);
+
+        // 切断 （CubeManager 利用した場合）
+        cubeManager.DisconnectAll();    // ALT: cubeManager.Disconnect(cube);
+        yield return new WaitUntil(() => !cube.isConnected);
+        yield return new WaitForSeconds(3);
+
+        // 再接続 （CubeManager 利用した場合）
+        cubeManager.ReConnectAll();     // ALT: cubeManager.ReConnect(cube);
+        yield return new WaitUntil(() => cube.isConnected);
+
+        StartCoroutine(LoopConnection());
+    }
+
+    void Update()
+    {
+        // CubeManagerからモジュールを間接利用した場合:
+        if (cubeManager.IsControllable(cube))
+        {
+            cube.Move(50, -50, 200);
         }
     }
 }

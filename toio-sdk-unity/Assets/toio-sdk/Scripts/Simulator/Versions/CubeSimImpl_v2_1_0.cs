@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -14,168 +13,162 @@ namespace toio.Simulator
         public  CubeSimImpl_v2_1_0(CubeSimulator cube) : base(cube){}
 
 
-        // ============ Motor ============
+        #region ============ Motor ============
 
-        protected string motorCurrentCmdType = "";
-        protected override void MotorScheduler(float dt, float t)
+        protected virtual void MotorSetCmd(MotorCmdType type, object cmd)
         {
-            motorCmdElipsed += dt;
+            // ------ Overwrite Events ------
 
-            float latestRecvTime = 0;
-            bool newCmd = false;
-            string oldCmdType = motorCurrentCmdType;
-            MotorAccCmd oldAccCmd = currMotorAccCmd;
-            MotorMultiTargetCmd multiCmdTemp = default;
+            // TargetCmd -> Any
+            if (motorCmdType == MotorCmdType.MotorTargetCmd)
+                this.targetMoveCallback?.Invoke(motorTargetCmd.configID, Cube.TargetMoveRespondType.OtherWrite);
+            // MultiTargetCmd -> Other types
+            else if (motorCmdType == MotorCmdType.MotorMultiTargetCmd && type != MotorCmdType.MotorMultiTargetCmd)
+                this.multiTargetMoveCallback?.Invoke(motorMultiTargetCmd.configID, Cube.TargetMoveRespondType.OtherWrite);
+            // MultiTargetCmd -> MultiTargetCmd
+            else if (motorCmdType == MotorCmdType.MotorMultiTargetCmd && type == MotorCmdType.MotorMultiTargetCmd)
+                if ( ((MotorMultiTargetCmd)cmd).multiWriteType == Cube.MultiWriteType.Write )
+                    this.multiTargetMoveCallback?.Invoke(motorMultiTargetCmd.configID, Cube.TargetMoveRespondType.OtherWrite);
+                else if ( this.hasNextMotorMultiTargetCmd)
+                    this.multiTargetMoveCallback?.Invoke(((MotorMultiTargetCmd)cmd).configID, Cube.TargetMoveRespondType.AddRefused);
 
-            byte oldConfigID = 0;
-            switch (motorCurrentCmdType)
-            {
-                case "Target": { oldConfigID = currMotorTargetCmd.configID; break; }
-                case "MultiTarget": { oldConfigID = currMotorMultiTargetCmd.configID; break; }
-            }
+            // ------ Update Commands ------
 
-            bool overwriteMulti = false;
+            bool initSuccess = true;
 
-
-            // ----- Dequeue Commands -----
-            while (motorTimeCmdQ.Count>0 && t > motorTimeCmdQ.Peek().tRecv + cube.delay)
+            // TargetCmd
+            if (type == MotorCmdType.MotorTargetCmd)
             {
-                motorCmdElipsed = 0;
-                currMotorTimeCmd = motorTimeCmdQ.Dequeue();
-                motorCurrentCmdType = "Time"; latestRecvTime = currMotorTimeCmd.tRecv;
-                newCmd = true;
-                overwriteMulti = true;
+                motorTargetCmd = (MotorTargetCmd) cmd;
+                initSuccess = TargetMoveInit();
             }
-            while (motorTargetCmdQ.Count>0 && t > motorTargetCmdQ.Peek().tRecv + cube.delay)
+            // MultiTargetCmd
+            else if (type == MotorCmdType.MotorMultiTargetCmd)
             {
-                motorCmdElipsed = 0;
-                currMotorTargetCmd = motorTargetCmdQ.Dequeue();
-                if (currMotorTargetCmd.tRecv > latestRecvTime)
+                var newCmd = (MotorMultiTargetCmd)cmd;
+                if (motorCmdType != MotorCmdType.MotorMultiTargetCmd)
                 {
-                    motorCurrentCmdType = "Target"; latestRecvTime = currMotorTargetCmd.tRecv;
-                    newCmd = true;
+                    this.motorMultiTargetCmd = newCmd;
+                    this.hasNextMotorMultiTargetCmd = false;
+                    initSuccess = MultiTargetMoveInit();
                 }
-                overwriteMulti = true;
-            }
-            while (motorMultiTargetCmdQ.Count>0 && t > motorMultiTargetCmdQ.Peek().tRecv + cube.delay)
-            {
-                motorCmdElipsed = 0;
-                multiCmdTemp = motorMultiTargetCmdQ.Dequeue();
-                if (multiCmdTemp.tRecv > latestRecvTime)
+                else if (newCmd.multiWriteType == Cube.MultiWriteType.Write)
                 {
-                    motorCurrentCmdType = "MultiTarget"; latestRecvTime = multiCmdTemp.tRecv;
-                    newCmd = true;
+                    this.motorMultiTargetCmd = newCmd;
+                    this.hasNextMotorMultiTargetCmd = false;
+                    initSuccess = MultiTargetMoveInit();
                 }
-            }
-            while (motorAccCmdQ.Count>0 && t > motorAccCmdQ.Peek().tRecv + cube.delay)
-            {
-                motorCmdElipsed = 0;
-                currMotorAccCmd = motorAccCmdQ.Dequeue();
-                if (currMotorAccCmd.tRecv > latestRecvTime)
+                else if (!this.hasNextMotorMultiTargetCmd)
                 {
-                    motorCurrentCmdType = "Acc"; latestRecvTime = currMotorAccCmd.tRecv;
-                    newCmd = true;
-                }
-                overwriteMulti = true;
-            }
-
-            // ----- Target -----
-            if (newCmd && oldCmdType == "Target")
-                this.targetMoveCallback?.Invoke(oldConfigID, Cube.TargetMoveRespondType.OtherWrite);
-            if (newCmd && motorCurrentCmdType == "Target")
-                TargetMoveInit();
-
-            // ----- Multi Target -----
-            if (overwriteMulti) hasNextMotorMultiTargetCmd = false;
-            if (oldCmdType == "MultiTarget" && overwriteMulti)
-            {
-                this.multiTargetMoveCallback?.Invoke(oldConfigID, Cube.TargetMoveRespondType.OtherWrite);
-                if (motorCurrentCmdType=="MultiTarget" && newCmd)
-                {
-                    currMotorMultiTargetCmd = multiCmdTemp;
-                    MultiTargetMoveInit();
-                }
-            }
-            else if (oldCmdType != "MultiTarget")
-            {
-                if (motorCurrentCmdType=="MultiTarget" && newCmd)
-                {
-                    currMotorMultiTargetCmd = multiCmdTemp;
-                    MultiTargetMoveInit();
-                }
-            }
-            else if (newCmd)    // oldCmdType == "MultiTarget" && !overwriteMulti
-            {
-                if (multiCmdTemp.multiWriteType == Cube.MultiWriteType.Write)
-                {
-                    this.multiTargetMoveCallback?.Invoke(oldConfigID, Cube.TargetMoveRespondType.OtherWrite);
-                    currMotorMultiTargetCmd = multiCmdTemp;
-                    MultiTargetMoveInit();
-                }
-                else if (this.hasNextMotorMultiTargetCmd)
-                {
-                    this.multiTargetMoveCallback?.Invoke(multiCmdTemp.configID, Cube.TargetMoveRespondType.AddRefused);
-                }
-                else
-                {
-                    this.nextMotorMultiTargetCmd = multiCmdTemp;
+                    this.nextMotorMultiTargetCmd = newCmd;
                     this.hasNextMotorMultiTargetCmd = true;
                 }
             }
-
-            // ----- Acceleration -----
-            if (newCmd && motorCurrentCmdType == "Acc")
+            // AccCmd
+            else if (type == MotorCmdType.MotorAccCmd)
             {
-                if (oldCmdType == "Acc")    // 前指令がAccの場合
-                    currMotorAccCmd.initialSpd = oldAccCmd.currSpd;   // 速度を継続する
+                var newCmd = (MotorAccCmd)cmd;
+                // 前指令がAccの場合, 速度を継続する
+                if (motorCmdType == MotorCmdType.MotorAccCmd)
+                    newCmd.initialSpd = this.motorAccCmd.currSpd;
                 else    // 前指令がAccじゃない場合
-                    currMotorAccCmd.initialSpd = 0;   // 速度を継続する     ※リアルのテスト結果
-                    // currMotorAccCmd.acc = 0;    // 直ちに目標速度にする      ※仕様書
+                    newCmd.initialSpd = 0;   // 速度を継続する     ※リアルのテスト結果
+                    // newCmd.acc = 0;    // 直ちに目標速度にする      ※仕様書
+                this.motorAccCmd = newCmd;
             }
-
-
-            // ----- Excute Order -----
-            switch (motorCurrentCmdType)
+            else if (type == MotorCmdType.MotorTimeCmd)
             {
-                case "Time":
-                {
-                    if (currMotorTimeCmd.duration==0
-                        || motorCmdElipsed < currMotorTimeCmd.duration/1000f)
-                    {
-                        motorLeft = currMotorTimeCmd.left;
-                        motorRight = currMotorTimeCmd.right;
-                    }
-                    else
-                    {
-                        motorLeft = 0; motorRight = 0;
-                    }
-                    break;
-                }
-                case "Target":
-                {
-                    TargetMoveController();
-                    break;
-                }
-                case "MultiTarget":
-                {
-                    MultiTargetMoveController();
-                    break;
-                }
-                case "Acc":
-                {
-                    AccMoveController();
-                    break;
-                }
+                this.motorTimeCmd = (MotorTimeCmd)cmd;
             }
 
+            // Set motorCmdType
+            if (initSuccess) this.motorCmdType = type;
+            else this.motorCmdType = MotorCmdType.None;
         }
 
+        protected override void MotorScheduler(float t)
+        {
+            // ----- Excute Order -----
+            switch (this.motorCmdType)
+            {
+                case MotorCmdType.MotorTimeCmd:
+                {
+                    float elipsed = t - motorTimeCmd.tRecv;
+                    if (motorTimeCmd.duration==0 || elipsed < motorTimeCmd.duration/1000f)
+                    {
+                        motorCmdL = motorTimeCmd.left;
+                        motorCmdR = motorTimeCmd.right;
+                    }
+                    else
+                        this.motorCmdType = MotorCmdType.None;
+                    break;
+                }
+                case MotorCmdType.MotorTargetCmd:
+                {
+                    float elipsed = t - motorTargetCmd.tRecv;
+                    TargetMoveController(elipsed);
+                    break;
+                }
+                case MotorCmdType.MotorMultiTargetCmd:
+                {
+                    float elipsed = t - motorMultiTargetCmd.tRecv;
+                    MultiTargetMoveController(elipsed);
+                    break;
+                }
+                case MotorCmdType.MotorAccCmd:
+                {
+                    float elipsed = t - motorAccCmd.tRecv;
+                    AccMoveController(elipsed);
+                    break;
+                }
+            }
 
-        // -------- Target Move Parameters --------
+            // Order Over
+            if (this.motorCmdType == MotorCmdType.None)
+            {
+                motorCmdL = 0; motorCmdR = 0;
+            }
+        }
+
+        protected override void ResetMotor()
+        {
+            base.ResetMotor();
+
+            motorTargetCmd = default;
+            targetMoveCallback = null;
+
+            motorMultiTargetCmd = default;
+            hasNextMotorMultiTargetCmd = false;
+            nextMotorMultiTargetCmd = default;
+            multiTargetMoveCallback = null;
+
+            motorAccCmd = default;
+        }
+
+        #endregion
+
+
+        #region  -------- Time Move --------
+        public override void Move(int left, int right, int durationMS)
+        {
+            MotorTimeCmd cmd = new MotorTimeCmd();
+            cmd.left = Mathf.Clamp(left, -maxMotor, maxMotor);
+            cmd.right = Mathf.Clamp(right, -maxMotor, maxMotor);
+            if (Mathf.Abs(cmd.left) < this.deadzone) cmd.left = 0;
+            if (Mathf.Abs(cmd.right) < this.deadzone) cmd.right = 0;
+            cmd.duration = Mathf.Clamp(durationMS, 0, 2550);
+            cmd.tRecv = Time.time;
+
+            MotorSetCmd(MotorCmdType.MotorTimeCmd, cmd);
+        }
+        #endregion
+
+
+        #region  -------- Target Move --------
+        // -------- Parameters --------
         protected float motorTargetPosTol = 10;
         protected float motorTargetDegTol = 15;
 
-        // -------- Target Move --------
         protected struct MotorTargetCmd
         {
             public ushort x, y, deg;
@@ -188,65 +181,64 @@ namespace toio.Simulator
             public bool reach;
             public float initialDeg, absoluteDeg, relativeDeg, lastDeg, acc;
         }
-        protected Queue<MotorTargetCmd> motorTargetCmdQ = new Queue<MotorTargetCmd>(); // command queue
-        protected MotorTargetCmd currMotorTargetCmd = default;  // current command
+        protected MotorTargetCmd motorTargetCmd = default;  // current command
 
-        protected virtual void TargetMoveInit()
+        protected virtual bool TargetMoveInit()
         {
-            var cmd = currMotorTargetCmd;
+            var cmd = motorTargetCmd;
 
             // Parameter Error
             if (cmd.x==65535 && cmd.y==65535
                 && (cmd.targetRotationType==Cube.TargetRotationType.Original || cmd.targetRotationType==Cube.TargetRotationType.NotRotate))
             {
                 this.targetMoveCallback?.Invoke(cmd.configID, Cube.TargetMoveRespondType.ParameterError);
-                motorCurrentCmdType = ""; motorLeft = 0; motorRight = 0; return;
+                this.motorCmdType = MotorCmdType.None; return false;
             }
 
             // x/y of value 0xffff means last x/y
-            if (this.currMotorTargetCmd.x==65535) this.currMotorTargetCmd.x = (ushort)this.x;
-            if (this.currMotorTargetCmd.y==65535) this.currMotorTargetCmd.y = (ushort)this.y;
+            if (this.motorTargetCmd.x==65535) this.motorTargetCmd.x = (ushort)this.x;
+            if (this.motorTargetCmd.y==65535) this.motorTargetCmd.y = (ushort)this.y;
 
-            cmd = currMotorTargetCmd;
+            cmd = motorTargetCmd;
             float dist = Mathf.Sqrt( (cmd.x-this.x)*(cmd.x-this.x)+(cmd.y-this.y)*(cmd.y-this.y) );
 
             // Unsupported
             if (cmd.maxSpd < 10)
             {
                 this.targetMoveCallback?.Invoke(cmd.configID, Cube.TargetMoveRespondType.NonSupport);
-                motorCurrentCmdType = ""; motorLeft = 0; motorRight = 0; return;
+                this.motorCmdType = MotorCmdType.None; return false;
             }
 
             // toio ID missed Error
             if (!this.onMat)
             {
                 this.targetMoveCallback?.Invoke(cmd.configID, Cube.TargetMoveRespondType.ToioIDmissed);
-                motorCurrentCmdType = ""; motorLeft = 0; motorRight = 0; return;
+                this.motorCmdType = MotorCmdType.None; return false;
             }
 
-            this.currMotorTargetCmd.acc = ((float)cmd.maxSpd*cmd.maxSpd-this.deadzone*this.deadzone) * CubeSimulator.VDotOverU
-                /2/dist;
+            this.motorTargetCmd.acc = ((float)cmd.maxSpd*cmd.maxSpd-this.deadzone*this.deadzone) * CubeSimulator.VDotOverU / 2 / dist;
 
-            this.currMotorTargetCmd.initialDeg = this.deg;
+            this.motorTargetCmd.initialDeg = this.deg;
+            return true;
         }
-        protected virtual void TargetMoveController()
+        protected virtual void TargetMoveController(float elipsed)
         {
-            var cmd = currMotorTargetCmd;
+            var cmd = motorTargetCmd;
             float translate=0, rotate=0;
 
             // ---- Timeout ----
             byte timeout = cmd.timeOut==0? (byte)10:cmd.timeOut;
-            if (motorCmdElipsed > timeout)
+            if (elipsed > timeout)
             {
                 this.targetMoveCallback?.Invoke(cmd.configID, Cube.TargetMoveRespondType.Timeout);
-                motorCurrentCmdType = ""; motorLeft = 0; motorRight = 0; return;
+                this.motorCmdType = MotorCmdType.None; return;
             }
 
             // ---- toio ID missed Error ----
             if (!this.onMat)
             {
                 this.targetMoveCallback?.Invoke(cmd.configID, Cube.TargetMoveRespondType.ToioIDmissed);
-                motorCurrentCmdType = ""; motorLeft = 0; motorRight = 0; return;
+                this.motorCmdType = MotorCmdType.None; return;
             }
 
             // ---- Preprocess ----
@@ -258,29 +250,29 @@ namespace toio.Simulator
             // reach pos
             if (!cmd.reach && dpos.magnitude < motorTargetPosTol)
             {
-                this.currMotorTargetCmd.reach = true;
+                this.motorTargetCmd.reach = true;
                 if (cmd.targetRotationType == Cube.TargetRotationType.NotRotate)        // Not rotate
-                    this.currMotorTargetCmd.absoluteDeg = Deg(this.deg);
+                    this.motorTargetCmd.absoluteDeg = Deg(this.deg);
                 else if (cmd.targetRotationType == Cube.TargetRotationType.Original)    // Inital deg
-                    this.currMotorTargetCmd.absoluteDeg = Deg(cmd.initialDeg);
+                    this.motorTargetCmd.absoluteDeg = Deg(cmd.initialDeg);
                 else if ((byte)cmd.targetRotationType <= 2)                             // Absolute deg
-                    this.currMotorTargetCmd.absoluteDeg = Deg(cmd.deg);
+                    this.motorTargetCmd.absoluteDeg = Deg(cmd.deg);
                 else                                                                    // Relative deg
                 {
-                    this.currMotorTargetCmd.absoluteDeg = Deg(this.deg + cmd.deg);
-                    this.currMotorTargetCmd.relativeDeg = cmd.deg;
-                    this.currMotorTargetCmd.lastDeg = this.deg;
+                    this.motorTargetCmd.absoluteDeg = Deg(this.deg + cmd.deg);
+                    this.motorTargetCmd.relativeDeg = cmd.deg;
+                    this.motorTargetCmd.lastDeg = this.deg;
                 }
             }
             // reach deg
             if (cmd.reach && Mathf.Abs(Deg(this.deg-cmd.absoluteDeg))<motorTargetDegTol && cmd.relativeDeg<180)
             {
                 this.targetMoveCallback?.Invoke(cmd.configID, Cube.TargetMoveRespondType.Normal);
-                motorCurrentCmdType = ""; motorLeft = 0; motorRight = 0; return;
+                this.motorCmdType = MotorCmdType.None; return;
             }
 
             // ---- Update ----
-            cmd = this.currMotorTargetCmd;
+            cmd = this.motorTargetCmd;
 
             // ---- Rotate ----
             if (cmd.reach)
@@ -290,12 +282,12 @@ namespace toio.Simulator
                     cmd.absoluteDeg, cmd.relativeDeg, cmd.lastDeg, cmd.targetRotationType,cmd.maxSpd);
                 if (cmd.targetRotationType==Cube.TargetRotationType.RelativeClockwise
                     || cmd.targetRotationType==Cube.TargetRotationType.RelativeCounterClockwise)
-                    this.currMotorTargetCmd.relativeDeg = relativeDeg;
+                    this.motorTargetCmd.relativeDeg = relativeDeg;
             }
             // ---- Move ----
             else
             {
-                (translate, rotate) = TargetMove_MoveControl(
+                (translate, rotate) = TargetMove_MoveControl(elipsed,
                     cmd.x, cmd.y, cmd.maxSpd, cmd.targetSpeedType, cmd.acc, cmd.targetMoveType );
             }
 
@@ -331,7 +323,7 @@ namespace toio.Simulator
                     {
                         var ddegr = Deg(this.deg - lastDeg);
                         relativeDeg = relativeDeg - ddegr;
-                        this.currMotorTargetCmd.lastDeg = this.deg;
+                        this.motorTargetCmd.lastDeg = this.deg;
                         rotate = 360;
                     }
                     break;
@@ -348,7 +340,7 @@ namespace toio.Simulator
                     {
                         var ddegr = Deg(this.deg - lastDeg);
                         relativeDeg = relativeDeg + ddegr;
-                        this.currMotorTargetCmd.lastDeg = this.deg;
+                        this.motorTargetCmd.lastDeg = this.deg;
                         rotate = -360;
                     }
                     break;
@@ -360,6 +352,7 @@ namespace toio.Simulator
             return (0, rotate, relativeDeg);
         }
         protected (float, float) TargetMove_MoveControl(
+            float elipsed,
             ushort x, ushort y,
             byte maxSpd,
             Cube.TargetSpeedType targetSpeedType,
@@ -384,17 +377,17 @@ namespace toio.Simulator
                 { break; }
                 case (Cube.TargetSpeedType.Acceleration):       // 目標地点まで徐々に加速
                 {
-                    spd = Mathf.Clamp(this.deadzone + acc*motorCmdElipsed, this.deadzone, maxSpd);
+                    spd = Mathf.Clamp(this.deadzone + acc*elipsed, this.deadzone, maxSpd);
                     break;
                 }
                 case (Cube.TargetSpeedType.Deceleration):       // 目標地点まで徐々に減速
                 {
-                    spd = Mathf.Clamp(maxSpd - acc*motorCmdElipsed, this.deadzone, maxSpd);
+                    spd = Mathf.Clamp(maxSpd - acc*elipsed, this.deadzone, maxSpd);
                     break;
                 }
                 case (Cube.TargetSpeedType.VariableSpeed):      // 中間地点まで徐々に加速し、そこから目標地点まで減速
                 {
-                    spd = Mathf.Clamp(maxSpd - 2*acc*Mathf.Abs(motorCmdElipsed - (maxSpd-this.deadzone)/acc/2), this.deadzone, maxSpd);
+                    spd = Mathf.Clamp(maxSpd - 2*acc*Mathf.Abs(elipsed - (maxSpd-this.deadzone)/acc/2), this.deadzone, maxSpd);
                     break;
                 }
             }
@@ -444,7 +437,7 @@ namespace toio.Simulator
                 uL -= Mathf.Min(uL, uR) + this.maxMotor;
                 uR -= Mathf.Min(uL, uR) + this.maxMotor;
             }
-            motorLeft = uL; motorRight = uR;
+            motorCmdL = uL; motorCmdR = uR;
         }
 
         // Callback
@@ -487,14 +480,17 @@ namespace toio.Simulator
             cmd.configID = (byte)Mathf.Clamp(configID, 0, 255);
             cmd.timeOut = (byte)Mathf.Clamp(timeOut, 0, 255);
             cmd.targetMoveType = targetMoveType;
-            cmd.maxSpd = (byte)Mathf.Clamp(maxSpd, 10, this.maxMotor);
+            cmd.maxSpd = (byte)Mathf.Clamp(maxSpd, 0, this.maxMotor);
             cmd.targetSpeedType = targetSpeedType; cmd.targetRotationType = targetRotationType;
             cmd.tRecv = Time.time;
-            motorTargetCmdQ.Enqueue(cmd);
+
+            MotorSetCmd(MotorCmdType.MotorTargetCmd, cmd);
         }
 
+        #endregion
 
-        // -------- Multi Target Move --------
+
+        #region  -------- Multi Target Move --------
         protected struct MotorMultiTargetCmd
         {
             public ushort[] xs, ys, degs;
@@ -510,39 +506,38 @@ namespace toio.Simulator
             public float elipsed;
             public byte idx;
         }
-        protected Queue<MotorMultiTargetCmd> motorMultiTargetCmdQ = new Queue<MotorMultiTargetCmd>(); // command queue
-        protected MotorMultiTargetCmd currMotorMultiTargetCmd = default;  // current command
+        protected MotorMultiTargetCmd motorMultiTargetCmd = default;  // current command
         protected bool hasNextMotorMultiTargetCmd = false;
         protected MotorMultiTargetCmd nextMotorMultiTargetCmd = default;
 
-        protected virtual void MultiTargetMoveInit()
+        protected virtual bool MultiTargetMoveInit()
         {
-            var cmd = currMotorMultiTargetCmd;
+            var cmd = motorMultiTargetCmd;
 
-            this.currMotorMultiTargetCmd.initialDeg = this.deg;
+            this.motorMultiTargetCmd.initialDeg = this.deg;
 
             // Parameter Error
             if (cmd.xs[0]==65535 && cmd.ys[0]==65535
                 && (cmd.rotTypes[0]==Cube.TargetRotationType.Original || cmd.rotTypes[0]==Cube.TargetRotationType.NotRotate))
             {
                 this.multiTargetMoveCallback?.Invoke(cmd.configID, Cube.TargetMoveRespondType.ParameterError);
-                motorCurrentCmdType = ""; hasNextMotorMultiTargetCmd = false; motorLeft = 0; motorRight = 0; return;
+                hasNextMotorMultiTargetCmd = false; return false;
             }
-            if (cmd.xs[0]==65535) this.currMotorMultiTargetCmd.xs[0] = (ushort)this.x;
-            if (cmd.ys[0]==65535) this.currMotorMultiTargetCmd.ys[0] = (ushort)this.y;
+            if (cmd.xs[0]==65535) this.motorMultiTargetCmd.xs[0] = (ushort)this.x;
+            if (cmd.ys[0]==65535) this.motorMultiTargetCmd.ys[0] = (ushort)this.y;
 
             // Unsupported
             if (cmd.maxSpd < 10)
             {
                 this.targetMoveCallback?.Invoke(cmd.configID, Cube.TargetMoveRespondType.ToioIDmissed);
-                motorCurrentCmdType = ""; hasNextMotorMultiTargetCmd = false; motorLeft = 0; motorRight = 0; return;
+                hasNextMotorMultiTargetCmd = false; return false;
             }
 
             // toio ID missed Error
             if (!this.onMat)
             {
                 this.targetMoveCallback?.Invoke(cmd.configID, Cube.TargetMoveRespondType.ToioIDmissed);
-                motorCurrentCmdType = ""; hasNextMotorMultiTargetCmd = false; motorLeft = 0; motorRight = 0; return;
+                hasNextMotorMultiTargetCmd = false; return false;
             }
 
             // Calc. Acceleration
@@ -561,20 +556,21 @@ namespace toio.Simulator
                     overallDist += d;
                 }
             }
-            this.currMotorMultiTargetCmd.acc = ((float)cmd.maxSpd*cmd.maxSpd-this.deadzone*this.deadzone) * CubeSimulator.VDotOverU
+            this.motorMultiTargetCmd.acc = ((float)cmd.maxSpd*cmd.maxSpd-this.deadzone*this.deadzone) * CubeSimulator.VDotOverU
                 /2/overallDist;
 
+            return true;
         }
         protected virtual void MultiTargetMove_NextIdx()
         {
-            this.currMotorMultiTargetCmd.reach = false;
-            this.currMotorMultiTargetCmd.elipsed = 0;
-            this.currMotorMultiTargetCmd.initialDeg = this.currMotorMultiTargetCmd.absoluteDeg;
-            this.currMotorMultiTargetCmd.idx = (byte)(this.currMotorMultiTargetCmd.idx + 1);
+            this.motorMultiTargetCmd.reach = false;
+            this.motorMultiTargetCmd.elipsed = 0;
+            this.motorMultiTargetCmd.initialDeg = this.motorMultiTargetCmd.absoluteDeg;
+            this.motorMultiTargetCmd.idx = (byte)(this.motorMultiTargetCmd.idx + 1);
         }
-        protected virtual void MultiTargetMoveController()
+        protected virtual void MultiTargetMoveController(float elipsed)
         {
-            var cmd = currMotorMultiTargetCmd;
+            var cmd = motorMultiTargetCmd;
             float translate=0, rotate=0;
 
             // ---- Timeout ----
@@ -582,14 +578,14 @@ namespace toio.Simulator
             if (cmd.elipsed > timeout)
             {
                 this.multiTargetMoveCallback?.Invoke(cmd.configID, Cube.TargetMoveRespondType.Timeout);
-                motorCurrentCmdType = ""; hasNextMotorMultiTargetCmd = false; motorLeft = 0; motorRight = 0; return;
+                this.motorCmdType = MotorCmdType.None; hasNextMotorMultiTargetCmd = false; return;
             }
 
             // ---- toio ID missed Error ----
             if (!this.onMat)
             {
                 this.multiTargetMoveCallback?.Invoke(cmd.configID, Cube.TargetMoveRespondType.ToioIDmissed);
-                motorCurrentCmdType = ""; hasNextMotorMultiTargetCmd = false; motorLeft = 0; motorRight = 0; return;
+                this.motorCmdType = MotorCmdType.None; hasNextMotorMultiTargetCmd = false; return;
             }
 
             // ---- Parameter Error ----
@@ -597,14 +593,14 @@ namespace toio.Simulator
                 && (cmd.rotTypes[cmd.idx]==Cube.TargetRotationType.Original || cmd.rotTypes[cmd.idx]==Cube.TargetRotationType.NotRotate))
             {
                 this.multiTargetMoveCallback?.Invoke(cmd.configID, Cube.TargetMoveRespondType.ParameterError);
-                motorCurrentCmdType = ""; hasNextMotorMultiTargetCmd = false; motorLeft = 0; motorRight = 0; return;
+                this.motorCmdType = MotorCmdType.None; hasNextMotorMultiTargetCmd = false; return;
             }
 
             // ---- Preprocess ----
             if (cmd.xs[cmd.idx]==65535 && cmd.idx>0)
-                this.currMotorMultiTargetCmd.xs[cmd.idx] = cmd.xs[cmd.idx] = cmd.xs[cmd.idx-1];
+                this.motorMultiTargetCmd.xs[cmd.idx] = cmd.xs[cmd.idx] = cmd.xs[cmd.idx-1];
             if (cmd.ys[cmd.idx]==65535 && cmd.idx>0)
-                this.currMotorMultiTargetCmd.ys[cmd.idx] = cmd.ys[cmd.idx] = cmd.ys[cmd.idx-1];
+                this.motorMultiTargetCmd.ys[cmd.idx] = cmd.ys[cmd.idx] = cmd.ys[cmd.idx-1];
             Vector2 targetPos = new Vector2(cmd.xs[cmd.idx], cmd.ys[cmd.idx]);
             Vector2 pos = new Vector2(this.x, this.y);
             var dpos = targetPos - pos;
@@ -613,19 +609,19 @@ namespace toio.Simulator
             // reach pos
             if (!cmd.reach && dpos.magnitude < motorTargetPosTol)
             {
-                this.currMotorMultiTargetCmd.reach = true;
+                this.motorMultiTargetCmd.reach = true;
                 var rotType = cmd.rotTypes[cmd.idx];
                 if (rotType == Cube.TargetRotationType.NotRotate)           // Not rotate
-                    this.currMotorMultiTargetCmd.absoluteDeg = Deg(this.deg);
+                    this.motorMultiTargetCmd.absoluteDeg = Deg(this.deg);
                 else if (rotType == Cube.TargetRotationType.Original)       // Inital deg
-                    this.currMotorMultiTargetCmd.absoluteDeg = Deg(cmd.initialDeg);
+                    this.motorMultiTargetCmd.absoluteDeg = Deg(cmd.initialDeg);
                 else if ((byte)rotType <= 2)                                // Absolute deg
-                    this.currMotorMultiTargetCmd.absoluteDeg = Deg(cmd.degs[cmd.idx]);
+                    this.motorMultiTargetCmd.absoluteDeg = Deg(cmd.degs[cmd.idx]);
                 else                                                        // Relative deg
                 {
-                    this.currMotorMultiTargetCmd.absoluteDeg = Deg(this.deg + cmd.degs[cmd.idx]);
-                    this.currMotorMultiTargetCmd.relativeDeg = cmd.degs[cmd.idx];
-                    this.currMotorMultiTargetCmd.lastDeg = this.deg;
+                    this.motorMultiTargetCmd.absoluteDeg = Deg(this.deg + cmd.degs[cmd.idx]);
+                    this.motorMultiTargetCmd.relativeDeg = cmd.degs[cmd.idx];
+                    this.motorMultiTargetCmd.lastDeg = this.deg;
                 }
             }
             // reach deg
@@ -638,14 +634,14 @@ namespace toio.Simulator
                     // Load Next Command
                     if (hasNextMotorMultiTargetCmd)
                     {
-                        currMotorMultiTargetCmd = nextMotorMultiTargetCmd;
+                        motorMultiTargetCmd = nextMotorMultiTargetCmd;
                         hasNextMotorMultiTargetCmd = false;
                         MultiTargetMoveInit();
                     }
                     // Over
                     else
                     {
-                        motorCurrentCmdType = ""; hasNextMotorMultiTargetCmd = false; motorLeft = 0; motorRight = 0; return;
+                        this.motorCmdType = MotorCmdType.None; hasNextMotorMultiTargetCmd = false; return;
                     }
                 }
                 // Not the last target
@@ -653,7 +649,7 @@ namespace toio.Simulator
             }
 
             // ---- Update ----
-            cmd = currMotorMultiTargetCmd;
+            cmd = motorMultiTargetCmd;
 
             // ---- Rotate ----
             if (cmd.reach)
@@ -663,13 +659,13 @@ namespace toio.Simulator
                     cmd.absoluteDeg, cmd.relativeDeg, cmd.lastDeg, cmd.rotTypes[cmd.idx], cmd.maxSpd);
                 if (cmd.rotTypes[cmd.idx]==Cube.TargetRotationType.RelativeClockwise
                     || cmd.rotTypes[cmd.idx]==Cube.TargetRotationType.RelativeCounterClockwise)
-                    this.currMotorMultiTargetCmd.relativeDeg = relativeDeg;
+                    this.motorMultiTargetCmd.relativeDeg = relativeDeg;
             }
 
             // ---- Move ----
             else
             {
-                (translate, rotate) = TargetMove_MoveControl(
+                (translate, rotate) = TargetMove_MoveControl(elipsed,
                     cmd.xs[cmd.idx], cmd.ys[cmd.idx], cmd.maxSpd, cmd.targetSpeedType, cmd.acc, cmd.targetMoveType );
             }
 
@@ -721,16 +717,19 @@ namespace toio.Simulator
             cmd.rotTypes = multiRotationTypeList!=null? multiRotationTypeList : new Cube.TargetRotationType[cmd.xs.Length];
             cmd.configID = (byte)Mathf.Clamp(configID, 0, 255);
             cmd.timeOut = (byte)Mathf.Clamp(timeOut, 0, 255);
-            cmd.maxSpd = (byte)Mathf.Clamp(maxSpd, 10, this.maxMotor);
+            cmd.maxSpd = (byte)Mathf.Clamp(maxSpd, 0, this.maxMotor);
             cmd.targetMoveType = targetMoveType;
             cmd.targetSpeedType = targetSpeedType;
             cmd.multiWriteType = multiWriteType;
             cmd.tRecv = Time.time;
-            motorMultiTargetCmdQ.Enqueue(cmd);
+
+            MotorSetCmd(MotorCmdType.MotorMultiTargetCmd, cmd);
         }
 
+        #endregion
 
-        // -------- Acceleration Move --------
+
+        #region  -------- Acceleration Move --------
         protected struct MotorAccCmd
         {
             public byte acc, controlTime;
@@ -739,19 +738,18 @@ namespace toio.Simulator
             public float tRecv;
             public float initialSpd, currSpd;
         }
-        protected Queue<MotorAccCmd> motorAccCmdQ = new Queue<MotorAccCmd>(); // command queue
-        protected MotorAccCmd currMotorAccCmd = default;  // current command
+        protected MotorAccCmd motorAccCmd = default;  // current command
 
-        protected virtual void AccMoveController()
+        protected virtual void AccMoveController(float elipsed)
         {
-            var cmd = currMotorAccCmd;
+            var cmd = motorAccCmd;
             float translate=0, rotate=0;
 
             // ---- Control Time ----
-            if (cmd.controlTime!=0 && motorCmdElipsed > (float)cmd.controlTime/100)
+            if (cmd.controlTime!=0 && elipsed > (float)cmd.controlTime/100)
             {
-                this.currMotorAccCmd.currSpd = 0;
-                motorCurrentCmdType = ""; motorLeft = 0; motorRight = 0; return;
+                this.motorAccCmd.currSpd = 0;
+                this.motorCmdType = MotorCmdType.None; return;
             }
 
             // ---- Acceleration ----
@@ -761,12 +759,12 @@ namespace toio.Simulator
                 spd = targetSpd;
             else
             {
-                if (motorCmdElipsed >= Mathf.Abs(targetSpd-cmd.initialSpd)/(cmd.acc/0.1f))   // Accelerate Over
+                if (elipsed >= Mathf.Abs(targetSpd-cmd.initialSpd)/(cmd.acc/0.1f))   // Accelerate Over
                     spd = targetSpd;
                 else
-                    spd = cmd.initialSpd + Mathf.Sign(targetSpd-cmd.initialSpd) * motorCmdElipsed*cmd.acc/0.1f;
+                    spd = cmd.initialSpd + Mathf.Sign(targetSpd-cmd.initialSpd) * elipsed*cmd.acc/0.1f;
             }
-            this.currMotorAccCmd.currSpd = spd;
+            this.motorAccCmd.currSpd = spd;
             translate = spd;
 
             // ---- Rotation ----
@@ -786,8 +784,8 @@ namespace toio.Simulator
             }
 
             // ---- Apply ----
-            motorLeft = translate + rotate;
-            motorRight = translate - rotate;
+            motorCmdL = translate + rotate;
+            motorCmdR = translate - rotate;
         }
 
         // COMMAND API
@@ -811,30 +809,38 @@ namespace toio.Simulator
             cmd.accPriorityType = accPriorityType;
             cmd.controlTime = (byte)Mathf.Clamp(controlTime, 0, 255);
             cmd.tRecv = Time.time;
-            motorAccCmdQ.Enqueue(cmd);
+
+            MotorSetCmd(MotorCmdType.MotorAccCmd, cmd);
         }
 
+        #endregion
 
 
-        // ============ Motion Sensor ============
+        #region  ============ Motion Sensor ============
+        protected override void InvokeMotionSensorCallback()
+        {
+            if (this.motionSensorCallback == null) return;
+            object[] sensors = new object[5];
+            sensors[0] = null;
+            sensors[1] = (object)this._sloped;
+            sensors[2] = (object)this._collisonDetected; this._collisonDetected = false;
+            sensors[3] = (object)this._doubleTapped; this._doubleTapped = false;
+            sensors[4] = (object)this._pose;
+            this.motionSensorCallback.Invoke(sensors);
+        }
+
         // ---------- Pose -----------
         protected Cube.PoseType _pose = Cube.PoseType.Up;
         public override Cube.PoseType pose {
             get{ return _pose; }
             internal set{
-                if (this._pose!=value){
-                    this.poseCallback?.Invoke(value);
+                if (this._pose != value){
+                    this._pose = value;
+                    this.InvokeMotionSensorCallback();
                 }
-                _pose = value;
             }
         }
 
-        protected System.Action<Cube.PoseType> poseCallback = null;
-        public override void StartNotification_Pose(System.Action<Cube.PoseType> action)
-        {
-            this.poseCallback = action;
-            this.poseCallback.Invoke(_pose);
-        }
         protected virtual void SimulatePose()
         {
             if(Vector3.Angle(Vector3.up, cube.transform.up)<slopeThreshold)
@@ -864,23 +870,12 @@ namespace toio.Simulator
         }
 
         // ---------- Double Tap -----------
-        protected bool _doubleTap;
-        public override bool doubleTap
+        protected bool _doubleTapped = false;
+        internal override void TriggerDoubleTap()
         {
-            get {return this._doubleTap;}
-            internal set
-            {
-                if (this._doubleTap!=value){
-                    this.doubleTapCallback?.Invoke(value);
-                }
-                this._doubleTap = value;
-            }
-        }
-        protected System.Action<bool> doubleTapCallback = null;
-        public override void StartNotification_DoubleTap(System.Action<bool> action)
-        {
-            this.doubleTapCallback = action;
-            this.doubleTapCallback.Invoke(_doubleTap);
+            this._doubleTapped = true;
+            this.InvokeMotionSensorCallback();
+            this._doubleTapped = false;
         }
         protected virtual void SimulateDoubleTap()
         {
@@ -897,6 +892,16 @@ namespace toio.Simulator
             SimulatePose();
             SimulateDoubleTap();
         }
+
+        protected override void ResetMotionSensor()
+        {
+            base.ResetMotionSensor();
+
+            _pose = Cube.PoseType.Up;
+            _doubleTapped = false;
+        }
+
+        #endregion
 
     }
 }

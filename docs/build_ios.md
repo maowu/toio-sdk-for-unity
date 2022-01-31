@@ -9,7 +9,7 @@
 | ツール・ソフトウェア | 確認バージョン         | 推奨バージョン          |
 | -------------------- | ---------------------- | ----------------------- |
 | OS                   | macOS Catalina 10.15.5 | macOS Mojave 10.14 以上 |
-| Unity                | 2019.4.0f1             | 2019.3 以上             |
+| Unity                | 2020.3.17f1            | 2020.3 以上             |
 | Xcode                | 11.5 (11E608c)         | 11 以上                 |
 | iOS                  | 12.3.1, 13.2.2         | 11 以上                 |
 
@@ -19,7 +19,7 @@ Unity をインストールする時に iOS Build Support モジュールを追�
 
 ## ビルドプラットフォームを iOS に切り替え
 
-ここでは、[toio SDK for Unity のインストール](download_sdk.md)の最後から続けて `Assets/toio-sdk-unity/Assets/toio-sdk/Tutorials/1.Basic/0.BasicScene/` を開いているものとして説明を進めます。
+ここでは、[toio SDK for Unity のインストール](download_sdk.md)の最後から続けて `Assets/toio-sdk/Tutorials/1.Basic/0.BasicScene/` を開いているものとして説明を進めます。
 
 まず、Unity のメニュー【ファイル】→【ビルド設定...】を選択してください。【Build Settings】の【プラットフォーム】のリストから iOS を選択し、右下の 【Switch Platform】 ボタンを押してください。
 
@@ -49,7 +49,7 @@ iOS 用のビルドをするために Xcode でプロジェクトファイル（
 
 以下の Unity 公式ページを参考に、Xcode プロジェクトの設定やプロビジョニングプロファイルの設定を行います。
 
-- [iOS 用ゲームの開発について \- Unity マニュアル](https://docs.unity3d.com/ja/2019.4/Manual/iphone-GettingStarted.html)
+- [iOS 用ゲームの開発について \- Unity マニュアル](https://docs.unity3d.com/ja/2020.3/Manual/iphone-GettingStarted.html)
 
 ## Xcode ビルド
 

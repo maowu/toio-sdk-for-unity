@@ -12,6 +12,7 @@
 
 - [ウェブアプリ関連](FAQ.md#ウェブアプリ関連)
     - [WindowsPC でウェブアプリがうまく動きません](FAQ.md#windowspc-でウェブアプリがうまく動きません)
+    - [Unity 2020で作られたアプリが起動しません・読み込めません](FAQ.md##unity-2020で作られたアプリが起動しません読み込めません)
 
 ## 基本
 
@@ -30,7 +31,7 @@ toio SDK for Unity を動作させるには UniTask のインストールが必�
 ### どのマットを使えば自分の開発に合うのかがよくわかりません
 > Keywords： マット Mat 仕様
 
-各種マットの違いは見た目と座標範囲だけです。仕様は [toio™コア キューブ 技術仕様 2.1.0](https://toio.github.io/toio-spec/docs/info_position_id) と [『開発者向けマット（仮称）』](https://toio.io/blog/detail/20200423-1.html) を参考にしてください。
+各種マットの違いは見た目と座標範囲だけです。仕様は [toio™コア キューブ 技術仕様 2.1.0](https://toio.github.io/toio-spec/docs/hardware_position_id) と [『開発者向けマット（仮称）』](https://toio.io/blog/detail/20200423-1.html) を参考にしてください。
 
 単にシミュレータで動かしたい場合は、どちらを使っても問題ありません。<br>
 シミュレータだけで完結せず、実際にキューブを動かすアプリを開発したい場合は、実際に使うマットと同じタイプを使ったほうが良いです。
@@ -42,7 +43,7 @@ toio SDK for Unity を動作させるには UniTask のインストールが必�
 
 必須ではありません。
 
-[ドキュメント](usage_simulator.md#5-Stage-Prefab) で紹介したように、マット、カメラ、操作に必要なコンポネント等をセットにしたものです。Stage Prefab と Cube Prehab をシーンに入れれば、迅速に基本の開発環境を整えることができます。
+[ドキュメント](usage_simulator.md#5-Stage-Prefab) で紹介したように、マット、カメラ、操作に必要なコンポネント等をセットにしたものです。Stage Prefab と Cube Prefab をシーンに入れれば、迅速に基本の開発環境を整えることができます。
 
 ### Stage Prefab を使わない場合に注意することはありますか
 > Keywords: Stage
@@ -57,3 +58,10 @@ Stage 専用のフォーカスやターゲットポール機能は勿論使え�
 > Keywords： Windows Bluetooth BLE
 
 WindowsPC では複数台接続に問題が確認されています。[【コチラ】](build_web.md#windowspc-を使った複数台接続が不安定)をご確認ください。
+
+### Unity 2020で作られたアプリが起動しません・読み込めません
+> Keywords: Build Startup
+
+[編集] -> [プロジェクト設定…] -> [Player] -> [公開設定] を開いて、`圧縮形式` を `無効` にしますか、`解凍フォールバック` にチェックを入れますかをお試しください。ただし前者の場合はファイルサイズが大きくなりますのでご注意ください。
+
+※参考資料： [Unity2020 WebGL 9割まで読み込めるがアプリが起動しない不具合の解決方法](https://qiita.com/aguroshou0413/items/1451a6779a92acb96b78)

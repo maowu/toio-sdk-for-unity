@@ -40,7 +40,7 @@ Unity Editor で実行した場合はUIとシミュレータが並列表示さ�
 
 1. 「ファイル > 新しいシーン」をクリックして、新しいシーンを作成します。
 2. ヒエラルキーにある「Main Camera」と「Directional Light」を削除
-3. プロジェクトウィンドウで「Assets/toio-sdk-unity/Assets/toio-sdk/Scripts/Simulator/Resources」フォルダを開きます
+3. プロジェクトウィンドウで「Assets/toio-sdk/Scripts/Simulator/Resources」フォルダを開きます
 4. 「Cube」Prefab ファイル と 「Stage」Prefab ファイルをヒエラルキーにドラック&ドロップします。<br>
 ※ シーン上でマウス操作すれば「Cube」オブジェクトの移動も出来ます。
 5. ヒエラルキー上で右クリック、右クリックメニューから「空のオブジェクトを作成」をクリックし、「scene」という名前にします。
@@ -226,8 +226,7 @@ public class MySimUI : MonoBehaviour
 4. 「Button0」をコピーし、「Button1」から「Button7」まで貼り付けます。
 
 5.  下の表を参考に、作成した8つのボタンのプロパティーを設定して行きます。
-    1. 「Button*」のインスペクターにある「Event Trigger」コンポーネントの 「Pointer Down」および 「Pointer Up」にある「No Function」をクリックし、「MyUIScript( [シーン作成](tutorials_UI.md#11-シーン作成) で設定したスクリプト名)」以下にあるそれぞれのメソッドに設定します。
-    します。
+    1. 「Button*」のインスペクターにある「Event Trigger」コンポーネントの 「Pointer Down」および 「Pointer Up」にある「No Function」をクリックし、「MyUIScript( [シーン作成](tutorials_UI.md#111-シーン作成) で設定したスクリプト名)」以下にあるそれぞれのメソッドに設定します。
     2. ヒエラルキーから「Button*」の子オブジェクトの「Text」を選択します。
     3. インスペクターにある「Text」コンポーネントの「テキスト」と「フォントサイズ」をそれぞれ設定します。
 
